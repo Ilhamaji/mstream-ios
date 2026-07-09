@@ -47,10 +47,18 @@ jobs:
           fi
           find . -name Podfile | while read -r podfile; do
             echo "Patching $podfile"
-            perl -pi -e 's/^platform :ios, .*/platform :ios, "17.0"/' "$podfile"
+            perl -pi -e 's/^platform :ios, .*/platform :ios, "18.0"/' "$podfile"
             if ! grep -q '^platform :ios' "$podfile"; then
-              sed -i '' '1iplatform :ios, "17.0"' "$podfile"
+              sed -i '' '1iplatform :ios, "18.0"' "$podfile"
             fi
+          done
+          find . -name project.pbxproj | while read -r pbxfile; do
+            echo "Patching pbxproj $pbxfile"
+            perl -pi -e 's/IPHONEOS_DEPLOYMENT_TARGET = \d+\.\d+/IPHONEOS_DEPLOYMENT_TARGET = 18.0/g' "$pbxfile"
+          done
+          find . -name "*.xcconfig" | while read -r xcfile; do
+            echo "Patching xcconfig $xcfile"
+            perl -pi -e 's/IPHONEOS_DEPLOYMENT_TARGET = .*/IPHONEOS_DEPLOYMENT_TARGET = 18.0/' "$xcfile"
           done
           npx --yes @capacitor/cli sync ios
 

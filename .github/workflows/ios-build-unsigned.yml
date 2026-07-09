@@ -39,6 +39,8 @@ jobs:
           if [ -d ios ] || [ -d ios/App ]; then
             echo "iOS platform already added"
           else
+            echo "Installing @capacitor/ios package and adding iOS platform"
+            npm install @capacitor/ios@latest --no-audit --no-fund
             npx --yes @capacitor/cli add ios
           fi
           npx --yes @capacitor/cli sync ios

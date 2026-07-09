@@ -65,7 +65,33 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate, W
             // Deteksi apakah ini situs Cineby — jika ya, biarkan native controls
             var isCineby = window.location.hostname.includes('cineby');
             
-            if (!isCineby) {
+            if (isCineby) {
+              // Pre-inject CSS lock rule untuk Cineby — sudah siap sejak awal,
+              // cukup toggle class 'cineby-locked' di <html> untuk hide/show secara instan
+              var lockStyle = document.getElementById('cineby-lock-preload');
+              if (!lockStyle) {
+                lockStyle = document.createElement('style');
+                lockStyle.id = 'cineby-lock-preload';
+                (document.head || document.documentElement).appendChild(lockStyle);
+              }
+              lockStyle.innerHTML = [
+                'html.cineby-locked video::-webkit-media-controls { display:none!important; opacity:0!important; }',
+                'html.cineby-locked video::-webkit-media-controls-enclosure { display:none!important; opacity:0!important; }',
+                'html.cineby-locked video::-webkit-media-controls-panel { display:none!important; opacity:0!important; }',
+                'html.cineby-locked video::-webkit-media-controls-play-button { display:none!important; opacity:0!important; }',
+                'html.cineby-locked video::-webkit-media-controls-overlay-play-button { display:none!important; opacity:0!important; }',
+                'html.cineby-locked video::-webkit-media-controls-start-playback-button { display:none!important; opacity:0!important; }',
+                'html.cineby-locked video::-webkit-media-controls-volume-slider { display:none!important; opacity:0!important; }',
+                'html.cineby-locked video::-webkit-media-controls-timeline { display:none!important; opacity:0!important; }',
+                'html.cineby-locked video::-webkit-media-controls-current-time-display { display:none!important; opacity:0!important; }',
+                'html.cineby-locked video::-webkit-media-controls-time-remaining-display { display:none!important; opacity:0!important; }',
+                'html.cineby-locked video::-webkit-media-controls-mute-button { display:none!important; opacity:0!important; }',
+                'html.cineby-locked video::-webkit-media-controls-fullscreen-button { display:none!important; opacity:0!important; }',
+                'html.cineby-locked *::-webkit-media-controls { display:none!important; }',
+                'html.cineby-locked *::-webkit-media-controls-overlay-play-button { display:none!important; }',
+                'html.cineby-locked *::-webkit-media-controls-start-playback-button { display:none!important; }'
+              ].join(' ');
+            } else {
               // Hanya blokir native controls untuk NON-Cineby (misal Nimegami)
               if (typeof HTMLVideoElement !== 'undefined') {
                 try {
@@ -1371,57 +1397,17 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate, W
         webView.evaluateJavaScript(js, completionHandler: nil)
     }
 
-    /// Sembunyikan video playback bawaan Cineby saat lock aktif
+    /// Sembunyikan video playback bawaan Cineby SECARA INSTAN saat lock aktif.
+    /// CSS sudah pre-inject di earlyScript — cukup toggle class di <html> untuk efek langsung.
     private func hideCinebyNativeControls() {
-        let js = """
-        (function() {
-          try {
-            var style = document.getElementById('cineby-lock-hide-controls');
-            if (!style) {
-              style = document.createElement('style');
-              style.id = 'cineby-lock-hide-controls';
-              (document.head || document.documentElement).appendChild(style);
-            }
-            style.innerHTML = [
-              'video::-webkit-media-controls { display:none!important; opacity:0!important; }',
-              'video::-webkit-media-controls-enclosure { display:none!important; opacity:0!important; }',
-              'video::-webkit-media-controls-panel { display:none!important; opacity:0!important; }',
-              'video::-webkit-media-controls-play-button { display:none!important; opacity:0!important; }',
-              'video::-webkit-media-controls-overlay-play-button { display:none!important; opacity:0!important; }',
-              'video::-webkit-media-controls-start-playback-button { display:none!important; opacity:0!important; }',
-              'video::-webkit-media-controls-volume-slider { display:none!important; opacity:0!important; }',
-              'video::-webkit-media-controls-timeline { display:none!important; opacity:0!important; }',
-              'video::-webkit-media-controls-current-time-display { display:none!important; opacity:0!important; }',
-              'video::-webkit-media-controls-time-remaining-display { display:none!important; opacity:0!important; }',
-              'video::-webkit-media-controls-mute-button { display:none!important; opacity:0!important; }',
-              'video::-webkit-media-controls-fullscreen-button { display:none!important; opacity:0!important; }',
-              '*::-webkit-media-controls { display:none!important; }',
-              '*::-webkit-media-controls-overlay-play-button { display:none!important; }',
-              '*::-webkit-media-controls-start-playback-button { display:none!important; }'
-            ].join(' ');
-
-            // Hapus controls attribute dari semua video
-            document.querySelectorAll('video').forEach(function(v) {
-              v.controls = false;
-              v.removeAttribute('controls');
-            });
-          } catch(e) {}
-        })();
-        """
-        webView.evaluateJavaScript(js, completionHandler: nil)
+        // Operasi sangat minimal: hanya tambah 1 class pada <html>
+        // Tidak perlu buat/append style element — jauh lebih cepat dari evaluateJavaScript penuh
+        webView.evaluateJavaScript("document.documentElement.classList.add('cineby-locked')", completionHandler: nil)
     }
 
-    /// Tampilkan kembali video playback bawaan Cineby saat lock dilepas
+    /// Tampilkan kembali video playback bawaan Cineby saat lock dilepas.
     private func showCinebyNativeControls() {
-        let js = """
-        (function() {
-          try {
-            var style = document.getElementById('cineby-lock-hide-controls');
-            if (style) style.remove();
-          } catch(e) {}
-        })();
-        """
-        webView.evaluateJavaScript(js, completionHandler: nil)
+        webView.evaluateJavaScript("document.documentElement.classList.remove('cineby-locked')", completionHandler: nil)
     }
 
     func setOrientationVisual(_ landscape: Bool) {

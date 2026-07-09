@@ -62,102 +62,100 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate, W
         let earlyJS = """
         (function() {
           try {
-            // Block 'controls' attribute via prototype descriptor — runs before player code
-            if (typeof HTMLVideoElement !== 'undefined') {
-              try {
-                Object.defineProperty(HTMLVideoElement.prototype, 'controls', {
-                  get: function() { return false; },
-                  set: function() {},
-                  configurable: true,
-                  enumerable: true
-                });
-              } catch(e) {}
-
-              // Block setAttribute('controls', ...) at prototype level
-              var _origSetAttr = HTMLVideoElement.prototype.setAttribute;
-              HTMLVideoElement.prototype.setAttribute = function(name, val) {
-                if (name === 'controls' || name === 'Controls') return;
-                return _origSetAttr.apply(this, arguments);
-              };
-            }
-
-            // Inject webkit media controls hiding CSS immediately
-            var earlyStyle = document.getElementById('mstream-early-hide');
-            if (!earlyStyle) {
-              earlyStyle = document.createElement('style');
-              earlyStyle.id = 'mstream-early-hide';
-              (document.head || document.documentElement).appendChild(earlyStyle);
-            }
-            earlyStyle.innerHTML = [
-              'video::-webkit-media-controls { display: none !important; opacity: 0 !important; }',
-              'video::-webkit-media-controls-enclosure { display: none !important; opacity: 0 !important; }',
-              'video::-webkit-media-controls-panel { display: none !important; opacity: 0 !important; }',
-              'video::-webkit-media-controls-play-button { display: none !important; opacity: 0 !important; }',
-              'video::-webkit-media-controls-start-playback-button { display: none !important; opacity: 0 !important; }',
-              'video::-webkit-media-controls-overlay-play-button { display: none !important; opacity: 0 !important; }',
-              'video::-webkit-media-controls-volume-slider { display: none !important; opacity: 0 !important; }',
-              'video::-webkit-media-controls-timeline { display: none !important; opacity: 0 !important; }',
-              'video::-webkit-media-controls-current-time-display { display: none !important; opacity: 0 !important; }',
-              'video::-webkit-media-controls-time-remaining-display { display: none !important; opacity: 0 !important; }',
-              'video::-webkit-media-controls-mute-button { display: none !important; opacity: 0 !important; }',
-              'video::-webkit-media-controls-fullscreen-button { display: none !important; opacity: 0 !important; }',
-              /* Broad catch-all untuk semua shadow DOM media controls */
-              '*::-webkit-media-controls { display: none !important; }',
-              '*::-webkit-media-controls-overlay-play-button { display: none !important; }',
-              '*::-webkit-media-controls-start-playback-button { display: none !important; }',
-              /* Sembunyikan container volume/timeline native */
-              'video { -webkit-media-controls-display: none; }',
-              '* { -webkit-touch-callout: none !important; }'
-            ].join(' ');
-
-            // Langsung set properti disableRemotePlayback dan disablePictureInPicture
-            // pada semua video yang sudah ada — ini paling efektif menekan overlay play button WebKit
-            function stripNativeVideoUI(v) {
-              try {
-                if ('disableRemotePlayback' in v) v.disableRemotePlayback = true;
-                if ('disablePictureInPicture' in v) v.disablePictureInPicture = true;
-                v.controls = false;
-                v.removeAttribute('controls');
-              } catch(e) {}
-            }
-            document.querySelectorAll('video').forEach(stripNativeVideoUI);
-            // MutationObserver untuk video baru yang ditambahkan
-            var videoStripper = new MutationObserver(function(muts) {
-              muts.forEach(function(m) {
-                m.addedNodes.forEach(function(node) {
-                  if (node.nodeName === 'VIDEO') stripNativeVideoUI(node);
-                  if (node.querySelectorAll) node.querySelectorAll('video').forEach(stripNativeVideoUI);
-                });
-              });
-            });
-            videoStripper.observe(document.documentElement, { childList: true, subtree: true });
-
-            // MutationObserver: strip 'controls' attribute the moment it appears on any video
-            var controlsGuard = new MutationObserver(function(mutations) {
-              mutations.forEach(function(m) {
-                if (m.type === 'attributes' && m.attributeName === 'controls') {
-                  m.target.removeAttribute('controls');
-                }
-                if (m.type === 'childList') {
-                  m.addedNodes.forEach(function(node) {
-                    if (node.nodeName === 'VIDEO') {
-                      node.removeAttribute('controls');
-                    }
-                    if (node.querySelectorAll) {
-                      node.querySelectorAll('video').forEach(function(v) {
-                        v.removeAttribute('controls');
-                      });
-                    }
+            // Deteksi apakah ini situs Cineby — jika ya, biarkan native controls
+            var isCineby = window.location.hostname.includes('cineby');
+            
+            if (!isCineby) {
+              // Hanya blokir native controls untuk NON-Cineby (misal Nimegami)
+              if (typeof HTMLVideoElement !== 'undefined') {
+                try {
+                  Object.defineProperty(HTMLVideoElement.prototype, 'controls', {
+                    get: function() { return false; },
+                    set: function() {},
+                    configurable: true,
+                    enumerable: true
                   });
-                }
+                } catch(e) {}
+
+                var _origSetAttr = HTMLVideoElement.prototype.setAttribute;
+                HTMLVideoElement.prototype.setAttribute = function(name, val) {
+                  if (name === 'controls' || name === 'Controls') return;
+                  return _origSetAttr.apply(this, arguments);
+                };
+              }
+
+              // Inject webkit media controls hiding CSS — hanya untuk non-Cineby
+              var earlyStyle = document.getElementById('mstream-early-hide');
+              if (!earlyStyle) {
+                earlyStyle = document.createElement('style');
+                earlyStyle.id = 'mstream-early-hide';
+                (document.head || document.documentElement).appendChild(earlyStyle);
+              }
+              earlyStyle.innerHTML = [
+                'video::-webkit-media-controls { display: none !important; opacity: 0 !important; }',
+                'video::-webkit-media-controls-enclosure { display: none !important; opacity: 0 !important; }',
+                'video::-webkit-media-controls-panel { display: none !important; opacity: 0 !important; }',
+                'video::-webkit-media-controls-play-button { display: none !important; opacity: 0 !important; }',
+                'video::-webkit-media-controls-start-playback-button { display: none !important; opacity: 0 !important; }',
+                'video::-webkit-media-controls-overlay-play-button { display: none !important; opacity: 0 !important; }',
+                'video::-webkit-media-controls-volume-slider { display: none !important; opacity: 0 !important; }',
+                'video::-webkit-media-controls-timeline { display: none !important; opacity: 0 !important; }',
+                'video::-webkit-media-controls-current-time-display { display: none !important; opacity: 0 !important; }',
+                'video::-webkit-media-controls-time-remaining-display { display: none !important; opacity: 0 !important; }',
+                'video::-webkit-media-controls-mute-button { display: none !important; opacity: 0 !important; }',
+                'video::-webkit-media-controls-fullscreen-button { display: none !important; opacity: 0 !important; }',
+                '*::-webkit-media-controls { display: none !important; }',
+                '*::-webkit-media-controls-overlay-play-button { display: none !important; }',
+                '*::-webkit-media-controls-start-playback-button { display: none !important; }',
+                'video { -webkit-media-controls-display: none; }',
+                '* { -webkit-touch-callout: none !important; }'
+              ].join(' ');
+
+              function stripNativeVideoUI(v) {
+                try {
+                  if ('disableRemotePlayback' in v) v.disableRemotePlayback = true;
+                  if ('disablePictureInPicture' in v) v.disablePictureInPicture = true;
+                  v.controls = false;
+                  v.removeAttribute('controls');
+                } catch(e) {}
+              }
+              document.querySelectorAll('video').forEach(stripNativeVideoUI);
+              var videoStripper = new MutationObserver(function(muts) {
+                muts.forEach(function(m) {
+                  m.addedNodes.forEach(function(node) {
+                    if (node.nodeName === 'VIDEO') stripNativeVideoUI(node);
+                    if (node.querySelectorAll) node.querySelectorAll('video').forEach(stripNativeVideoUI);
+                  });
+                });
               });
-            });
-            controlsGuard.observe(document.documentElement, {
-              attributes: true,
-              attributeFilter: ['controls'],
-              childList: true,
-              subtree: true
-            });
+              videoStripper.observe(document.documentElement, { childList: true, subtree: true });
+
+              var controlsGuard = new MutationObserver(function(mutations) {
+                mutations.forEach(function(m) {
+                  if (m.type === 'attributes' && m.attributeName === 'controls') {
+                    m.target.removeAttribute('controls');
+                  }
+                  if (m.type === 'childList') {
+                    m.addedNodes.forEach(function(node) {
+                      if (node.nodeName === 'VIDEO') {
+                        node.removeAttribute('controls');
+                      }
+                      if (node.querySelectorAll) {
+                        node.querySelectorAll('video').forEach(function(v) {
+                          v.removeAttribute('controls');
+                        });
+                      }
+                    });
+                  }
+                });
+              });
+              controlsGuard.observe(document.documentElement, {
+                attributes: true,
+                attributeFilter: ['controls'],
+                childList: true,
+                subtree: true
+              });
+            } // end !isCineby
           } catch(e) {}
         })();
         """
@@ -272,206 +270,178 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate, W
             setInterval(broadcastActiveSite, 1000);
             broadcastActiveSite();
 
-            // Inject custom Mstream dedicated playback controls
-            // Overlay is placed on document.body with position:fixed to guarantee it
-            // is always on top of any player library's own touch-intercept layers.
-            function injectMstreamControls() {
-              var video = document.querySelector('video');
-              if (!video) return;
+            // Deteksi apakah ini Cineby — jika ya, tidak inject dedicated overlay
+            var isCinebyMain = window.location.hostname.includes('cineby');
 
-              var existing = document.getElementById('mstream-controls-overlay');
-              if (existing) {
-                // Overlay exists — ensure it's still attached to body and has our ref
-                if (existing.parentNode !== document.body) {
-                  document.body.appendChild(existing);
-                }
-                return;
-              }
-
-              var overlay = document.createElement('div');
-              overlay.id = 'mstream-controls-overlay';
-              // Fixed positioning on body — always above everything
-              overlay.style.cssText = [
-                'position: fixed',
-                'top: 50%',
-                'left: 50%',
-                'transform: translate(-50%, -50%)',
-                'display: flex',
-                'align-items: center',
-                'justify-content: center',
-                'gap: 24px',
-                'z-index: 2147483647',
-                'pointer-events: auto',
-                'opacity: 0',
-                'transition: opacity 0.3s ease-in-out',
-                'background: rgba(0,0,0,0.45)',
-                'padding: 12px 24px',
-                'border-radius: 30px',
-                '-webkit-transform: translate(-50%, -50%)'
-              ].join('; ');
-
-              overlay.innerHTML = `
-                <button id="mstream-btn-back" style="width:50px;height:50px;border-radius:25px;border:1px solid rgba(255,255,255,0.4);background:rgba(20,20,20,0.85);color:white;font-size:14px;font-weight:bold;cursor:pointer;display:flex;align-items:center;justify-content:center;outline:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation;">↺ 5s</button>
-                <button id="mstream-btn-play" style="width:60px;height:60px;border-radius:30px;border:1px solid rgba(255,255,255,0.4);background:rgba(20,20,20,0.85);color:white;font-size:20px;font-weight:bold;cursor:pointer;display:flex;align-items:center;justify-content:center;outline:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation;">▶</button>
-                <button id="mstream-btn-forward" style="width:50px;height:50px;border-radius:25px;border:1px solid rgba(255,255,255,0.4);background:rgba(20,20,20,0.85);color:white;font-size:14px;font-weight:bold;cursor:pointer;display:flex;align-items:center;justify-content:center;outline:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation;">5s ↻</button>
-              `;
-
-              // Append directly to body for guaranteed top z-index stacking
-              document.body.appendChild(overlay);
-
-              var backBtn = document.getElementById('mstream-btn-back');
-              var playBtn = document.getElementById('mstream-btn-play');
-              var forwardBtn = document.getElementById('mstream-btn-forward');
-
-              var timer = null;
-              function showControls() {
-                if (document.body.classList.contains('playback-locked')) {
-                  hideControls();
-                  return;
-                }
-                overlay.style.opacity = '1';
-                overlay.style.pointerEvents = 'auto';
-                resetTimer();
-              }
-              function hideControls() {
-                overlay.style.opacity = '0';
-                overlay.style.pointerEvents = 'none';
-              }
-              function resetTimer() {
-                clearTimeout(timer);
-                timer = setTimeout(hideControls, 3000);
-              }
-
-              // Temporarily freeze any player intercept layer during button press
-              // so our touchstart fires cleanly without the player stealing the event
-              function freezePlayerInterceptors() {
-                try {
-                  var v = document.querySelector('video');
-                  if (!v) return;
-                  var el = v.parentNode;
-                  var depth = 0;
-                  while (el && el !== document.body && depth < 6) {
-                    var pe = getComputedStyle(el).pointerEvents;
-                    if (pe !== 'none') {
-                      el.dataset.mstreamFrozenPE = pe;
-                      el.style.setProperty('pointer-events', 'none', 'important');
-                    }
-                    el = el.parentNode;
-                    depth++;
-                  }
-                } catch(e) {}
-              }
-              function unfreezePlayerInterceptors() {
-                try {
-                  var v = document.querySelector('video');
-                  if (!v) return;
-                  var el = v.parentNode;
-                  var depth = 0;
-                  while (el && el !== document.body && depth < 6) {
-                    if (el.dataset.mstreamFrozenPE !== undefined) {
-                      el.style.removeProperty('pointer-events');
-                      delete el.dataset.mstreamFrozenPE;
-                    }
-                    el = el.parentNode;
-                    depth++;
-                  }
-                } catch(e) {}
-              }
-
-              function makeButtonHandler(action) {
-                var lastTouch = 0;
-                return {
-                  touchstart: function(e) {
-                    e.stopPropagation();
-                    lastTouch = Date.now();
-                    action(e);
-                    showControls();
-                  },
-                  click: function(e) {
-                    e.stopPropagation();
-                    if (Date.now() - lastTouch < 600) return; // dedupe
-                    action(e);
-                    showControls();
-                  },
-                  touchend: function(e) {
-                    e.stopPropagation();
-                    unfreezePlayerInterceptors();
-                  }
-                };
-              }
-
-              var backHandler = makeButtonHandler(function(e) {
-                e.preventDefault();
-                var v = document.querySelector('video');
-                if (v) v.currentTime = Math.max(0, v.currentTime - 5);
-              });
-              backBtn.addEventListener('touchstart', backHandler.touchstart, {passive: false});
-              backBtn.addEventListener('touchend', backHandler.touchend, {passive: false});
-              backBtn.addEventListener('click', backHandler.click);
-
-              var playHandler = makeButtonHandler(function(e) {
-                e.preventDefault();
-                var v = document.querySelector('video');
-                if (!v) return;
-                if (v.paused) { v.play(); } else { v.pause(); }
-              });
-              playBtn.addEventListener('touchstart', playHandler.touchstart, {passive: false});
-              playBtn.addEventListener('touchend', playHandler.touchend, {passive: false});
-              playBtn.addEventListener('click', playHandler.click);
-
-              var forwardHandler = makeButtonHandler(function(e) {
-                e.preventDefault();
-                var v = document.querySelector('video');
-                if (v) v.currentTime = Math.min(v.duration, v.currentTime + 5);
-              });
-              forwardBtn.addEventListener('touchstart', forwardHandler.touchstart, {passive: false});
-              forwardBtn.addEventListener('touchend', forwardHandler.touchend, {passive: false});
-              forwardBtn.addEventListener('click', forwardHandler.click);
-
-              // Track play/pause state
-              function syncPlayBtn() {
-                var v = document.querySelector('video');
-                if (!v) return;
-                playBtn.innerText = v.paused ? '▶' : '❚❚';
-              }
-              setInterval(syncPlayBtn, 500);
-              syncPlayBtn();
-
-              // Expose showControls for global touch handler
-              overlay.showMstreamControls = showControls;
-
-              showControls();
-            }
-            setInterval(injectMstreamControls, 1000);
-            injectMstreamControls();
-
-            // Set up global touch/click capture listener to show controls on screen tap
-            // Since overlay is now fixed on body, any tap anywhere should show it
-            if (!window.hasMstreamTouchListeners) {
-              window.hasMstreamTouchListeners = true;
-              var handleGlobalTouch = function(e) {
-                // Skip taps on our own buttons
-                var tid = e.target && e.target.id;
-                if (tid === 'mstream-btn-play' || tid === 'mstream-btn-back' || tid === 'mstream-btn-forward') {
-                  return;
-                }
-                // Skip taps on the overlay container itself (between buttons)
-                if (e.target && e.target.id === 'mstream-controls-overlay') return;
-
+            if (!isCinebyMain) {
+              // Inject custom Mstream dedicated playback controls — HANYA untuk non-Cineby (Nimegami, dll)
+              function injectMstreamControls() {
                 var video = document.querySelector('video');
                 if (!video) return;
-                var overlay = document.getElementById('mstream-controls-overlay');
-                if (!overlay || typeof overlay.showMstreamControls !== 'function') return;
-                overlay.showMstreamControls();
-              };
-              document.addEventListener('touchstart', handleGlobalTouch, {passive: true, capture: true});
-              document.addEventListener('click', handleGlobalTouch, {capture: true});
-            }
 
-            // Persistently hide default player controls, timelines, and timestamps.
-            // Covers all major player libraries and common class patterns.
-            var HIDE_CONTROLS_CSS = [
-              /* WebKit native video controls (most important!) */
+                var existing = document.getElementById('mstream-controls-overlay');
+                if (existing) {
+                  if (existing.parentNode !== document.body) {
+                    document.body.appendChild(existing);
+                  }
+                  return;
+                }
+
+                var overlay = document.createElement('div');
+                overlay.id = 'mstream-controls-overlay';
+                overlay.style.cssText = [
+                  'position: fixed',
+                  'top: 50%',
+                  'left: 50%',
+                  'transform: translate(-50%, -50%)',
+                  'display: flex',
+                  'align-items: center',
+                  'justify-content: center',
+                  'gap: 24px',
+                  'z-index: 2147483647',
+                  'pointer-events: auto',
+                  'opacity: 0',
+                  'transition: opacity 0.3s ease-in-out',
+                  'background: rgba(0,0,0,0.45)',
+                  'padding: 12px 24px',
+                  'border-radius: 30px',
+                  '-webkit-transform: translate(-50%, -50%)'
+                ].join('; ');
+
+                overlay.innerHTML = `
+                  <button id="mstream-btn-back" style="width:50px;height:50px;border-radius:25px;border:1px solid rgba(255,255,255,0.4);background:rgba(20,20,20,0.85);color:white;font-size:14px;font-weight:bold;cursor:pointer;display:flex;align-items:center;justify-content:center;outline:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation;">↺ 5s</button>
+                  <button id="mstream-btn-play" style="width:60px;height:60px;border-radius:30px;border:1px solid rgba(255,255,255,0.4);background:rgba(20,20,20,0.85);color:white;font-size:20px;font-weight:bold;cursor:pointer;display:flex;align-items:center;justify-content:center;outline:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation;">▶</button>
+                  <button id="mstream-btn-forward" style="width:50px;height:50px;border-radius:25px;border:1px solid rgba(255,255,255,0.4);background:rgba(20,20,20,0.85);color:white;font-size:14px;font-weight:bold;cursor:pointer;display:flex;align-items:center;justify-content:center;outline:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation;">5s ↻</button>
+                `;
+
+                document.body.appendChild(overlay);
+
+                var backBtn = document.getElementById('mstream-btn-back');
+                var playBtn = document.getElementById('mstream-btn-play');
+                var forwardBtn = document.getElementById('mstream-btn-forward');
+
+                var timer = null;
+                function showControls() {
+                  if (document.body.classList.contains('playback-locked')) {
+                    hideControls();
+                    return;
+                  }
+                  overlay.style.opacity = '1';
+                  overlay.style.pointerEvents = 'auto';
+                  resetTimer();
+                }
+                function hideControls() {
+                  overlay.style.opacity = '0';
+                  overlay.style.pointerEvents = 'none';
+                }
+                function resetTimer() {
+                  clearTimeout(timer);
+                  timer = setTimeout(hideControls, 3000);
+                }
+
+                function unfreezePlayerInterceptors() {
+                  try {
+                    var v = document.querySelector('video');
+                    if (!v) return;
+                    var el = v.parentNode;
+                    var depth = 0;
+                    while (el && el !== document.body && depth < 6) {
+                      if (el.dataset.mstreamFrozenPE !== undefined) {
+                        el.style.removeProperty('pointer-events');
+                        delete el.dataset.mstreamFrozenPE;
+                      }
+                      el = el.parentNode;
+                      depth++;
+                    }
+                  } catch(e) {}
+                }
+
+                function makeButtonHandler(action) {
+                  var lastTouch = 0;
+                  return {
+                    touchstart: function(e) {
+                      e.stopPropagation();
+                      lastTouch = Date.now();
+                      action(e);
+                      showControls();
+                    },
+                    click: function(e) {
+                      e.stopPropagation();
+                      if (Date.now() - lastTouch < 600) return;
+                      action(e);
+                      showControls();
+                    },
+                    touchend: function(e) {
+                      e.stopPropagation();
+                      unfreezePlayerInterceptors();
+                    }
+                  };
+                }
+
+                var backHandler = makeButtonHandler(function(e) {
+                  e.preventDefault();
+                  var v = document.querySelector('video');
+                  if (v) v.currentTime = Math.max(0, v.currentTime - 5);
+                });
+                backBtn.addEventListener('touchstart', backHandler.touchstart, {passive: false});
+                backBtn.addEventListener('touchend', backHandler.touchend, {passive: false});
+                backBtn.addEventListener('click', backHandler.click);
+
+                var playHandler = makeButtonHandler(function(e) {
+                  e.preventDefault();
+                  var v = document.querySelector('video');
+                  if (!v) return;
+                  if (v.paused) { v.play(); } else { v.pause(); }
+                });
+                playBtn.addEventListener('touchstart', playHandler.touchstart, {passive: false});
+                playBtn.addEventListener('touchend', playHandler.touchend, {passive: false});
+                playBtn.addEventListener('click', playHandler.click);
+
+                var forwardHandler = makeButtonHandler(function(e) {
+                  e.preventDefault();
+                  var v = document.querySelector('video');
+                  if (v) v.currentTime = Math.min(v.duration, v.currentTime + 5);
+                });
+                forwardBtn.addEventListener('touchstart', forwardHandler.touchstart, {passive: false});
+                forwardBtn.addEventListener('touchend', forwardHandler.touchend, {passive: false});
+                forwardBtn.addEventListener('click', forwardHandler.click);
+
+                function syncPlayBtn() {
+                  var v = document.querySelector('video');
+                  if (!v) return;
+                  playBtn.innerText = v.paused ? '▶' : '❚❚';
+                }
+                setInterval(syncPlayBtn, 500);
+                syncPlayBtn();
+
+                overlay.showMstreamControls = showControls;
+                showControls();
+              }
+              setInterval(injectMstreamControls, 1000);
+              injectMstreamControls();
+
+              // Global touch listener untuk show overlay — hanya Nimegami
+              if (!window.hasMstreamTouchListeners) {
+                window.hasMstreamTouchListeners = true;
+                var handleGlobalTouch = function(e) {
+                  var tid = e.target && e.target.id;
+                  if (tid === 'mstream-btn-play' || tid === 'mstream-btn-back' || tid === 'mstream-btn-forward') return;
+                  if (e.target && e.target.id === 'mstream-controls-overlay') return;
+                  var video = document.querySelector('video');
+                  if (!video) return;
+                  var overlay = document.getElementById('mstream-controls-overlay');
+                  if (!overlay || typeof overlay.showMstreamControls !== 'function') return;
+                  overlay.showMstreamControls();
+                };
+                document.addEventListener('touchstart', handleGlobalTouch, {passive: true, capture: true});
+                document.addEventListener('click', handleGlobalTouch, {capture: true});
+              }
+            } // end !isCinebyMain
+
+            // Persistently hide default player controls — hanya untuk non-Cineby (Nimegami)
+            // Cineby menggunakan native controls dan dikontrol oleh Swift (lock)
+            var HIDE_CONTROLS_CSS = isCinebyMain ? '' : [
+              /* WebKit native video controls */
               'video::-webkit-media-controls { display:none!important; }',
               'video::-webkit-media-controls-enclosure { display:none!important; }',
               'video::-webkit-media-controls-panel { display:none!important; }',
@@ -503,18 +473,15 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate, W
               '.shaka-bottom-controls,.shaka-settings-menu,.shaka-overflow-menu,',
               /* HLS.js / Flowplayer */
               '.fp-controls,.fp-ui,.fp-elapsed,.fp-duration,',
-              /* Cineby / Generic */
-              '.cb-controlbar,.cb-control,.cb-controls,',
+              /* Generic */
               '.player-controlbar,.player-bottom,.player-ui,.player-controls,',
               '.video-controlbar,.video-bottombar,.video-controls,',
-              /* Wide attribute-based selectors — catch-all for unknown players */
               '[class*=controlbar]:not(#mstream-controls-overlay),',
               '[class*=control-bar]:not(#mstream-controls-overlay),',
               '[class*=playerbar]:not(#mstream-controls-overlay),',
               '[class*=player-control]:not(#mstream-controls-overlay),',
               '[class*=video-control]:not(#mstream-controls-overlay)',
               '{ display:none!important; opacity:0!important; visibility:hidden!important; pointer-events:none!important; }',
-              /* Always keep our dedicated overlay visible */
               '#mstream-controls-overlay { display:flex!important; visibility:visible!important; pointer-events:auto!important; }',
               '#mstream-controls-overlay * { display:flex!important; visibility:visible!important; pointer-events:auto!important; }',
               '#mstream-controls-overlay[style*="opacity: 0"],',
@@ -522,84 +489,81 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate, W
               '{ opacity:0!important; pointer-events:none!important; }'
             ].join(' ');
 
-            function hideDefaultControls() {
-              // Inject persistent CSS
-              var style = document.getElementById('mstream-default-controls-hide-override');
-              if (!style) {
-                style = document.createElement('style');
-                style.id = 'mstream-default-controls-hide-override';
-                (document.head || document.documentElement).appendChild(style);
-              }
-              style.innerHTML = HIDE_CONTROLS_CSS;
+            // Hanya jalankan hideDefaultControls untuk non-Cineby
+            if (!isCinebyMain) {
+              function hideDefaultControls() {
+                var style = document.getElementById('mstream-default-controls-hide-override');
+                if (!style) {
+                  style = document.createElement('style');
+                  style.id = 'mstream-default-controls-hide-override';
+                  (document.head || document.documentElement).appendChild(style);
+                }
+                if (HIDE_CONTROLS_CSS) style.innerHTML = HIDE_CONTROLS_CSS;
 
-              // Remove controls attribute and property from all videos
-              try {
-                var videos = document.querySelectorAll('video');
-                for (var i = 0; i < videos.length; i++) {
-                  var v = videos[i];
-                  v.controls = false;
-                  v.removeAttribute('controls');
-                  // Nonaktifkan remote playback & PiP — ini yang paling efektif
-                  // menekan tombol overlay play button bawaan WebKit di WKWebView
-                  try { if ('disableRemotePlayback' in v) v.disableRemotePlayback = true; } catch(e) {}
-                  try { if ('disablePictureInPicture' in v) v.disablePictureInPicture = true; } catch(e) {}
+                try {
+                  var videos = document.querySelectorAll('video');
+                  for (var i = 0; i < videos.length; i++) {
+                    var v = videos[i];
+                    v.controls = false;
+                    v.removeAttribute('controls');
+                    try { if ('disableRemotePlayback' in v) v.disableRemotePlayback = true; } catch(e) {}
+                    try { if ('disablePictureInPicture' in v) v.disablePictureInPicture = true; } catch(e) {}
 
-                  // Override setAttribute to block future re-adds of 'controls'
-                  if (!v.__mstreamOverridden) {
-                    v.__mstreamOverridden = true;
-                    var origSetAttr = v.setAttribute.bind(v);
-                    v.setAttribute = function(name, value) {
-                      if (name === 'controls') return;
-                      origSetAttr(name, value);
-                    };
-                    Object.defineProperty(v, 'controls', {
-                      get: function() { return false; },
-                      set: function() {},
-                      configurable: true
-                    });
+                    if (!v.__mstreamOverridden) {
+                      v.__mstreamOverridden = true;
+                      var origSetAttr = v.setAttribute.bind(v);
+                      v.setAttribute = function(name, value) {
+                        if (name === 'controls') return;
+                        origSetAttr(name, value);
+                      };
+                      Object.defineProperty(v, 'controls', {
+                        get: function() { return false; },
+                        set: function() {},
+                        configurable: true
+                      });
+                    }
                   }
-                }
-              } catch (e) {}
+                } catch (e) {}
 
-              // Also inject the same CSS into all accessible iframes
-              try {
-                var iframes = document.querySelectorAll('iframe');
-                for (var fi = 0; fi < iframes.length; fi++) {
-                  try {
-                    var iDoc = iframes[fi].contentDocument || iframes[fi].contentWindow.document;
-                    if (!iDoc) continue;
-                    var iStyle = iDoc.getElementById('mstream-default-controls-hide-override');
-                    if (!iStyle) {
-                      iStyle = iDoc.createElement('style');
-                      iStyle.id = 'mstream-default-controls-hide-override';
-                      (iDoc.head || iDoc.documentElement).appendChild(iStyle);
-                    }
-                    iStyle.innerHTML = HIDE_CONTROLS_CSS;
-                    var iVideos = iDoc.querySelectorAll('video');
-                    for (var vi = 0; vi < iVideos.length; vi++) {
-                      var iv = iVideos[vi];
-                      iv.controls = false;
-                      iv.removeAttribute('controls');
-                      if (!iv.__mstreamOverridden) {
-                        iv.__mstreamOverridden = true;
-                        var origSetAttrI = iv.setAttribute.bind(iv);
-                        iv.setAttribute = function(name, value) {
-                          if (name === 'controls') return;
-                          origSetAttrI(name, value);
-                        };
-                        Object.defineProperty(iv, 'controls', {
-                          get: function() { return false; },
-                          set: function() {},
-                          configurable: true
-                        });
+                try {
+                  var iframes = document.querySelectorAll('iframe');
+                  for (var fi = 0; fi < iframes.length; fi++) {
+                    try {
+                      var iDoc = iframes[fi].contentDocument || iframes[fi].contentWindow.document;
+                      if (!iDoc) continue;
+                      var iStyle = iDoc.getElementById('mstream-default-controls-hide-override');
+                      if (!iStyle) {
+                        iStyle = iDoc.createElement('style');
+                        iStyle.id = 'mstream-default-controls-hide-override';
+                        (iDoc.head || iDoc.documentElement).appendChild(iStyle);
                       }
-                    }
-                  } catch (iframeErr) {}
-                }
-              } catch (e) {}
-            }
-            setInterval(hideDefaultControls, 300);
-            hideDefaultControls();
+                      if (HIDE_CONTROLS_CSS) iStyle.innerHTML = HIDE_CONTROLS_CSS;
+                      var iVideos = iDoc.querySelectorAll('video');
+                      for (var vi = 0; vi < iVideos.length; vi++) {
+                        var iv = iVideos[vi];
+                        iv.controls = false;
+                        iv.removeAttribute('controls');
+                        if (!iv.__mstreamOverridden) {
+                          iv.__mstreamOverridden = true;
+                          var origSetAttrI = iv.setAttribute.bind(iv);
+                          iv.setAttribute = function(name, value) {
+                            if (name === 'controls') return;
+                            origSetAttrI(name, value);
+                          };
+                          Object.defineProperty(iv, 'controls', {
+                            get: function() { return false; },
+                            set: function() {},
+                            configurable: true
+                          });
+                        }
+                      }
+                    } catch (iframeErr) {}
+                  }
+                } catch (e) {}
+              }
+              setInterval(hideDefaultControls, 300);
+              hideDefaultControls();
+            } // end !isCinebyMain
 
             // Notify native side of frame loading to check/enforce lock state
             try {
@@ -1211,6 +1175,11 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate, W
             webView.isUserInteractionEnabled = false
             screenTapGesture.isEnabled = true
             
+            // Untuk Cineby: sembunyikan langsung native video controls saat lock
+            if activeSite == .cineby {
+                hideCinebyNativeControls()
+            }
+            
             resetUnlockAutoHideTimer()
         } else {
             let unlockIcon = UIImage(systemName: "lock.open.fill", withConfiguration: config)
@@ -1224,11 +1193,18 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate, W
             webView.isUserInteractionEnabled = true
             screenTapGesture.isEnabled = false
             
+            // Untuk Cineby: tampilkan kembali native video controls saat unlock
+            if activeSite == .cineby {
+                showCinebyNativeControls()
+            }
+            
             stopUnlockAutoHideTimer()
         }
         
-        // Broadcast the lock message to all frames instantly
-        broadcastPlaybackLockState(isPlaybackLocked)
+        // Broadcast lock message ke semua frame (untuk Nimegami)
+        if activeSite != .cineby {
+            broadcastPlaybackLockState(isPlaybackLocked)
+        }
     }
 
     private func broadcastPlaybackLockState(_ locked: Bool) {
@@ -1342,9 +1318,14 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate, W
     }
 
     private func reinjectControlsHide() {
+        // Untuk Cineby: jangan hide native controls — biarkan player bawaan tampil
+        // Untuk Nimegami: hide semua controls dan keep dedicated overlay
         let js = """
         (function() {
           try {
+            var isCineby = window.location.hostname.includes('cineby');
+            if (isCineby) return; // Cineby pakai native controls — jangan diubah di sini
+
             var css = [
               'video::-webkit-media-controls{display:none!important}',
               'video::-webkit-media-controls-enclosure{display:none!important}',
@@ -1384,6 +1365,59 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate, W
             document.querySelectorAll('video').forEach(function(v) {
               v.removeAttribute('controls');
             });
+          } catch(e) {}
+        })();
+        """
+        webView.evaluateJavaScript(js, completionHandler: nil)
+    }
+
+    /// Sembunyikan video playback bawaan Cineby saat lock aktif
+    private func hideCinebyNativeControls() {
+        let js = """
+        (function() {
+          try {
+            var style = document.getElementById('cineby-lock-hide-controls');
+            if (!style) {
+              style = document.createElement('style');
+              style.id = 'cineby-lock-hide-controls';
+              (document.head || document.documentElement).appendChild(style);
+            }
+            style.innerHTML = [
+              'video::-webkit-media-controls { display:none!important; opacity:0!important; }',
+              'video::-webkit-media-controls-enclosure { display:none!important; opacity:0!important; }',
+              'video::-webkit-media-controls-panel { display:none!important; opacity:0!important; }',
+              'video::-webkit-media-controls-play-button { display:none!important; opacity:0!important; }',
+              'video::-webkit-media-controls-overlay-play-button { display:none!important; opacity:0!important; }',
+              'video::-webkit-media-controls-start-playback-button { display:none!important; opacity:0!important; }',
+              'video::-webkit-media-controls-volume-slider { display:none!important; opacity:0!important; }',
+              'video::-webkit-media-controls-timeline { display:none!important; opacity:0!important; }',
+              'video::-webkit-media-controls-current-time-display { display:none!important; opacity:0!important; }',
+              'video::-webkit-media-controls-time-remaining-display { display:none!important; opacity:0!important; }',
+              'video::-webkit-media-controls-mute-button { display:none!important; opacity:0!important; }',
+              'video::-webkit-media-controls-fullscreen-button { display:none!important; opacity:0!important; }',
+              '*::-webkit-media-controls { display:none!important; }',
+              '*::-webkit-media-controls-overlay-play-button { display:none!important; }',
+              '*::-webkit-media-controls-start-playback-button { display:none!important; }'
+            ].join(' ');
+
+            // Hapus controls attribute dari semua video
+            document.querySelectorAll('video').forEach(function(v) {
+              v.controls = false;
+              v.removeAttribute('controls');
+            });
+          } catch(e) {}
+        })();
+        """
+        webView.evaluateJavaScript(js, completionHandler: nil)
+    }
+
+    /// Tampilkan kembali video playback bawaan Cineby saat lock dilepas
+    private func showCinebyNativeControls() {
+        let js = """
+        (function() {
+          try {
+            var style = document.getElementById('cineby-lock-hide-controls');
+            if (style) style.remove();
           } catch(e) {}
         })();
         """

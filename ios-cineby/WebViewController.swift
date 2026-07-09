@@ -89,20 +89,48 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate, W
               (document.head || document.documentElement).appendChild(earlyStyle);
             }
             earlyStyle.innerHTML = [
-              'video::-webkit-media-controls { display: none !important; }',
-              'video::-webkit-media-controls-enclosure { display: none !important; }',
-              'video::-webkit-media-controls-panel { display: none !important; }',
-              'video::-webkit-media-controls-play-button { display: none !important; }',
-              'video::-webkit-media-controls-start-playback-button { display: none !important; }',
-              'video::-webkit-media-controls-overlay-play-button { display: none !important; }',
-              'video::-webkit-media-controls-volume-slider { display: none !important; }',
-              'video::-webkit-media-controls-timeline { display: none !important; }',
-              'video::-webkit-media-controls-current-time-display { display: none !important; }',
-              'video::-webkit-media-controls-time-remaining-display { display: none !important; }',
-              'video::-webkit-media-controls-mute-button { display: none !important; }',
-              'video::-webkit-media-controls-fullscreen-button { display: none !important; }',
+              'video::-webkit-media-controls { display: none !important; opacity: 0 !important; }',
+              'video::-webkit-media-controls-enclosure { display: none !important; opacity: 0 !important; }',
+              'video::-webkit-media-controls-panel { display: none !important; opacity: 0 !important; }',
+              'video::-webkit-media-controls-play-button { display: none !important; opacity: 0 !important; }',
+              'video::-webkit-media-controls-start-playback-button { display: none !important; opacity: 0 !important; }',
+              'video::-webkit-media-controls-overlay-play-button { display: none !important; opacity: 0 !important; }',
+              'video::-webkit-media-controls-volume-slider { display: none !important; opacity: 0 !important; }',
+              'video::-webkit-media-controls-timeline { display: none !important; opacity: 0 !important; }',
+              'video::-webkit-media-controls-current-time-display { display: none !important; opacity: 0 !important; }',
+              'video::-webkit-media-controls-time-remaining-display { display: none !important; opacity: 0 !important; }',
+              'video::-webkit-media-controls-mute-button { display: none !important; opacity: 0 !important; }',
+              'video::-webkit-media-controls-fullscreen-button { display: none !important; opacity: 0 !important; }',
+              /* Broad catch-all untuk semua shadow DOM media controls */
+              '*::-webkit-media-controls { display: none !important; }',
+              '*::-webkit-media-controls-overlay-play-button { display: none !important; }',
+              '*::-webkit-media-controls-start-playback-button { display: none !important; }',
+              /* Sembunyikan container volume/timeline native */
+              'video { -webkit-media-controls-display: none; }',
               '* { -webkit-touch-callout: none !important; }'
             ].join(' ');
+
+            // Langsung set properti disableRemotePlayback dan disablePictureInPicture
+            // pada semua video yang sudah ada — ini paling efektif menekan overlay play button WebKit
+            function stripNativeVideoUI(v) {
+              try {
+                if ('disableRemotePlayback' in v) v.disableRemotePlayback = true;
+                if ('disablePictureInPicture' in v) v.disablePictureInPicture = true;
+                v.controls = false;
+                v.removeAttribute('controls');
+              } catch(e) {}
+            }
+            document.querySelectorAll('video').forEach(stripNativeVideoUI);
+            // MutationObserver untuk video baru yang ditambahkan
+            var videoStripper = new MutationObserver(function(muts) {
+              muts.forEach(function(m) {
+                m.addedNodes.forEach(function(node) {
+                  if (node.nodeName === 'VIDEO') stripNativeVideoUI(node);
+                  if (node.querySelectorAll) node.querySelectorAll('video').forEach(stripNativeVideoUI);
+                });
+              });
+            });
+            videoStripper.observe(document.documentElement, { childList: true, subtree: true });
 
             // MutationObserver: strip 'controls' attribute the moment it appears on any video
             var controlsGuard = new MutationObserver(function(mutations) {
@@ -511,6 +539,10 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate, W
                   var v = videos[i];
                   v.controls = false;
                   v.removeAttribute('controls');
+                  // Nonaktifkan remote playback & PiP — ini yang paling efektif
+                  // menekan tombol overlay play button bawaan WebKit di WKWebView
+                  try { if ('disableRemotePlayback' in v) v.disableRemotePlayback = true; } catch(e) {}
+                  try { if ('disablePictureInPicture' in v) v.disablePictureInPicture = true; } catch(e) {}
 
                   // Override setAttribute to block future re-adds of 'controls'
                   if (!v.__mstreamOverridden) {
@@ -747,6 +779,7 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate, W
         let config = WKWebViewConfiguration()
         config.allowsInlineMediaPlayback = true
         config.allowsPictureInPictureMediaPlayback = false
+        config.allowsAirPlayForMediaPlayback = false
         if #available(iOS 10.0, *) {
             config.mediaTypesRequiringUserActionForPlayback = []
         }

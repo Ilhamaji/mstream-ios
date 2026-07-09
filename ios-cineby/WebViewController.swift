@@ -5,11 +5,14 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate {
     var webView: WKWebView!
     private var containerView: UIView!
     private var nativeRotateButton: UIButton!
+    private var nativeLockButton: UIButton!
     private var isFullscreen = false
     private var isLandscapeRotated = false
+    private var isPlaybackLocked = false
 
     private var webViewConstraints: [NSLayoutConstraint] = []
     private var rotateButtonConstraints: [NSLayoutConstraint] = []
+    private var lockButtonConstraints: [NSLayoutConstraint] = []
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -18,6 +21,7 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate {
 
         setupWebView()
         setupNativeRotateButton()
+        setupNativeLockButton()
         setupNavigationBarRotateButton()
         loadWebApp()
     }
@@ -103,6 +107,25 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate {
         updateRotateButtonConstraints(landscape: false)
     }
 
+    func setupNativeLockButton() {
+        nativeLockButton = UIButton(type: .system)
+        nativeLockButton.setTitle("Lock 🔓", for: .normal)
+        nativeLockButton.setTitleColor(.white, for: .normal)
+        nativeLockButton.backgroundColor = UIColor(red: 0.1, green: 0.1, blue: 0.1, alpha: 0.8)
+        nativeLockButton.layer.borderColor = UIColor.white.cgColor
+        nativeLockButton.layer.borderWidth = 1
+        nativeLockButton.layer.cornerRadius = 10
+        nativeLockButton.titleLabel?.font = UIFont.boldSystemFont(ofSize: 14)
+        nativeLockButton.translatesAutoresizingMaskIntoConstraints = false
+        nativeLockButton.isHidden = true
+        nativeLockButton.addTarget(self, action: #selector(nativeLockTapped), for: .touchUpInside)
+        
+        view.addSubview(nativeLockButton)
+        view.bringSubviewToFront(nativeLockButton)
+        
+        updateLockButtonConstraints(landscape: false)
+    }
+
     func setupNavigationBarRotateButton() {
         let rotateButton = UIBarButtonItem(title: "Rotate ↻", style: .plain, target: self, action: #selector(navigationRotateTapped))
         rotateButton.tintColor = .systemBlue
@@ -132,6 +155,29 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate {
         NSLayoutConstraint.activate(rotateButtonConstraints)
     }
 
+    private func updateLockButtonConstraints(landscape: Bool) {
+        NSLayoutConstraint.deactivate(lockButtonConstraints)
+        
+        if landscape {
+            // Physical top-left of screen acts as visual bottom-left in landscape mode
+            lockButtonConstraints = [
+                nativeLockButton.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor, constant: 20),
+                nativeLockButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 20),
+                nativeLockButton.widthAnchor.constraint(equalToConstant: 100),
+                nativeLockButton.heightAnchor.constraint(equalToConstant: 40)
+            ]
+        } else {
+            // Normal bottom-left safe area in portrait (though hidden)
+            lockButtonConstraints = [
+                nativeLockButton.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor, constant: 20),
+                nativeLockButton.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -20),
+                nativeLockButton.widthAnchor.constraint(equalToConstant: 100),
+                nativeLockButton.heightAnchor.constraint(equalToConstant: 40)
+            ]
+        }
+        NSLayoutConstraint.activate(lockButtonConstraints)
+    }
+
     func loadWebApp() {
         if let url = URL(string: "https://cineby.at") {
             webView.load(URLRequest(url: url))
@@ -148,8 +194,37 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate {
         setOrientationVisual(true)
     }
 
+    @objc func nativeLockTapped() {
+        NSLog("nativeLockTapped called")
+        isPlaybackLocked.toggle()
+        
+        if isPlaybackLocked {
+            nativeLockButton.setTitle("Unlock 🔒", for: .normal)
+            nativeLockButton.backgroundColor = UIColor(red: 0.8, green: 0.2, blue: 0.2, alpha: 0.9)
+            nativeLockButton.layer.borderColor = UIColor.red.cgColor
+            nativeRotateButton.isHidden = true
+            webView.isUserInteractionEnabled = false
+        } else {
+            nativeLockButton.setTitle("Lock 🔓", for: .normal)
+            nativeLockButton.backgroundColor = UIColor(red: 0.1, green: 0.1, blue: 0.1, alpha: 0.8)
+            nativeLockButton.layer.borderColor = UIColor.white.cgColor
+            nativeRotateButton.isHidden = false
+            webView.isUserInteractionEnabled = true
+        }
+    }
+
     func setOrientationVisual(_ landscape: Bool) {
         self.isLandscapeRotated = landscape
+        
+        // Reset lock when exiting landscape
+        if !landscape {
+            isPlaybackLocked = false
+            webView.isUserInteractionEnabled = true
+            nativeLockButton.setTitle("Lock 🔓", for: .normal)
+            nativeLockButton.backgroundColor = UIColor(red: 0.1, green: 0.1, blue: 0.1, alpha: 0.8)
+            nativeLockButton.layer.borderColor = UIColor.white.cgColor
+            nativeLockButton.isHidden = true
+        }
         
         // Update content inset adjustment behavior
         webView.scrollView.contentInsetAdjustmentBehavior = landscape ? .never : .always
@@ -171,10 +246,16 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate {
                 
                 self.nativeRotateButton.transform = CGAffineTransform(rotationAngle: .pi / 2)
                 self.nativeRotateButton.isHidden = false
+                
+                self.nativeLockButton.transform = CGAffineTransform(rotationAngle: .pi / 2)
+                self.nativeLockButton.isHidden = false
             } else {
                 self.webView.transform = .identity
                 self.nativeRotateButton.transform = .identity
                 self.nativeRotateButton.isHidden = true
+                
+                self.nativeLockButton.transform = .identity
+                self.nativeLockButton.isHidden = true
                 
                 self.webView.translatesAutoresizingMaskIntoConstraints = false
                 NSLayoutConstraint.activate(self.webViewConstraints)
@@ -185,6 +266,7 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate {
             self.setNeedsStatusBarAppearanceUpdate()
             
             self.updateRotateButtonConstraints(landscape: landscape)
+            self.updateLockButtonConstraints(landscape: landscape)
             
             self.view.layoutIfNeeded()
         }

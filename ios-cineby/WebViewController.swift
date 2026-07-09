@@ -314,22 +314,13 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate, W
                   return;
                 }
 
-                var overlay = document.createElement('div');
-                overlay.id = 'mstream-controls-overlay';
-                overlay.style.cssText = [
-                  'position: fixed',
-                  'top: 0',
-                  'left: 0',
-                  'width: 100%',
-                  'height: 100%',
-                  'z-index: 2147483647',
-                  'pointer-events: none',
-                  'opacity: 0',
-                  'transition: opacity 0.3s ease-in-out'
-                ].join('; ');
-
-                overlay.innerHTML = `
-                  <style>
+                // Append custom styles for slider to document head to prevent text render issues
+                var styleId = 'mstream-slider-custom-style';
+                var style = document.getElementById(styleId);
+                if (!style) {
+                  style = document.createElement('style');
+                  style.id = styleId;
+                  style.innerHTML = `
                     #mstream-slider-progress::-webkit-slider-runnable-track {
                       width: 100%;
                       height: 6px;
@@ -352,8 +343,25 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate, W
                       transform: scale(1.3);
                       background: #00ffaa;
                     }
-                  </style>
-                  
+                  `;
+                  (document.head || document.documentElement).appendChild(style);
+                }
+
+                var overlay = document.createElement('div');
+                overlay.id = 'mstream-controls-overlay';
+                overlay.style.cssText = [
+                  'position: fixed',
+                  'top: 0',
+                  'left: 0',
+                  'width: 100%',
+                  'height: 100%',
+                  'z-index: 2147483647',
+                  'pointer-events: none',
+                  'opacity: 0',
+                  'transition: opacity 0.3s ease-in-out'
+                ].join('; ');
+
+                overlay.innerHTML = `
                   <!-- Center Playback Pill -->
                   <div id="mstream-center-pill" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); -webkit-transform: translate(-50%, -50%); display: flex; align-items: center; justify-content: center; gap: 24px; pointer-events: auto; background: rgba(15, 15, 20, 0.8); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); padding: 12px 24px; border-radius: 35px; box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.45);">
                     <button id="mstream-btn-back" style="width:50px;height:50px;border-radius:25px;border:1px solid rgba(255,255,255,0.25);background:rgba(255,255,255,0.08);color:white;font-size:14px;font-weight:bold;cursor:pointer;display:flex;align-items:center;justify-content:center;outline:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation;transition: background 0.2s;">↺ 5s</button>
@@ -551,10 +559,8 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate, W
                 window.hasMstreamTouchListeners = true;
                 var handleGlobalTouch = function(e) {
                   var tid = e.target && e.target.id;
-                  if (tid === 'mstream-btn-play' || tid === 'mstream-btn-back' || tid === 'mstream-btn-forward') return;
+                  if (tid === 'mstream-btn-play' || tid === 'mstream-btn-back' || tid === 'mstream-btn-forward' || tid === 'mstream-slider-progress') return;
                   if (e.target && (e.target.id === 'mstream-controls-overlay' || e.target.closest('#mstream-controls-overlay'))) return;
-                  var video = document.querySelector('video');
-                  if (!video) return;
                   var overlay = document.getElementById('mstream-controls-overlay');
                   if (!overlay || typeof overlay.showMstreamControls !== 'function') return;
                   overlay.showMstreamControls();

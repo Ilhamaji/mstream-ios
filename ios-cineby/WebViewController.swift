@@ -1218,9 +1218,10 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate, W
         NSLayoutConstraint.deactivate(rotateButtonConstraints)
         
         if landscape {
-            // Physical bottom-left of screen acts as visual bottom-right in landscape mode
+            // Physical bottom-left of screen acts as visual bottom-right in landscape mode.
+            // Move higher (constant: 85) to clear the bottom progress bar/timestamps.
             rotateButtonConstraints = [
-                landscapeRotateButton.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor, constant: 20),
+                landscapeRotateButton.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor, constant: 85),
                 landscapeRotateButton.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -20),
                 landscapeRotateButton.widthAnchor.constraint(equalToConstant: 50),
                 landscapeRotateButton.heightAnchor.constraint(equalToConstant: 50)
@@ -1241,9 +1242,10 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate, W
         NSLayoutConstraint.deactivate(lockButtonConstraints)
         
         if landscape {
-            // Physical top-left of screen acts as visual bottom-left in landscape mode
+            // Physical top-left of screen acts as visual bottom-left in landscape mode.
+            // Move higher (constant: 85) to clear the bottom progress bar/timestamps.
             lockButtonConstraints = [
-                nativeLockButton.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor, constant: 20),
+                nativeLockButton.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor, constant: 85),
                 nativeLockButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 20),
                 nativeLockButton.widthAnchor.constraint(equalToConstant: 50),
                 nativeLockButton.heightAnchor.constraint(equalToConstant: 50)

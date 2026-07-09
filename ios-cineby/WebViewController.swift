@@ -149,9 +149,33 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate, W
             setInterval(checkVideoPresence, 1000);
             checkVideoPresence();
 
+            // Broadcast active site info from main frame to all subframes recursively
+            function broadcastActiveSite() {
+              var site = window.location.hostname.includes('nimegami') ? 'nimegami' : 'cineby';
+              function sendSite(win) {
+                try {
+                  win.postMessage({ type: 'mstreamActiveSite', site: site }, '*');
+                } catch (e) {}
+                for (var i = 0; i < win.frames.length; i++) {
+                  sendSite(win.frames[i]);
+                }
+              }
+              sendSite(window);
+            }
+            setInterval(broadcastActiveSite, 1000);
+            broadcastActiveSite();
+
             // Inject custom Mstream playback controls on Nimegami
-            var isNimegami = window.location.hostname.includes('nimegami');
+            var currentActiveSite = "";
             function injectMstreamControls() {
+              var referrer = document.referrer || "";
+              var topHost = "";
+              try { topHost = window.top.location.hostname; } catch(e) {}
+              var isNimegami = window.location.hostname.includes('nimegami') || 
+                               referrer.includes('nimegami') || 
+                               topHost.includes('nimegami') ||
+                               currentActiveSite === 'nimegami';
+                               
               if (!isNimegami) return;
               var video = document.querySelector('video');
               if (!video) return;
@@ -239,8 +263,12 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate, W
             setInterval(injectMstreamControls, 1000);
             injectMstreamControls();
 
-            // Listen for messages from child frames to mark active iframe player
+            // Listen for messages from child frames
             window.addEventListener('message', function(event) {
+              if (event.data && event.data.type === 'mstreamActiveSite') {
+                currentActiveSite = event.data.site;
+              }
+
               if (event.data && event.data.type === 'iAmVideoPlayer') {
                 var iframes = document.querySelectorAll('iframe');
                 for (var i = 0; i < iframes.length; i++) {
@@ -277,6 +305,8 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate, W
                     .vjs-control-bar, .vjs-big-play-button, .vjs-loading-spinner, .vjs-poster,
                     .plyr__controls, 
                     .art-control, .art-controls, .art-mask, .art-state, .art-state-play, .art-play, .art-poster, .art-bottom, .art-progress,
+                    .jw-settings-menu, .jw-settings-submenu, .jw-settings-content, .jw-submenu, .jw-icon-inline, .jw-slider-container, .jw-time-tip,
+                    .dplayer-menu, .dplayer-setting-box, .shaka-settings-menu,
                     [class*="control" i], 
                     [class*="toolbar" i], 
                     [class*="play-button" i], 
@@ -809,15 +839,15 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate, W
         let js = """
         (function() {
             var locked = \(locked);
-            // Send to current window
-            window.postMessage({ type: 'playbackLock', locked: locked }, '*');
-            // Send to all child iframes
-            var iframes = document.querySelectorAll('iframe');
-            for (var i = 0; i < iframes.length; i++) {
+            function broadcastLock(win, locked) {
                 try {
-                    iframes[i].contentWindow.postMessage({ type: 'playbackLock', locked: locked }, '*');
+                    win.postMessage({ type: 'playbackLock', locked: locked }, '*');
                 } catch (e) {}
+                for (var i = 0; i < win.frames.length; i++) {
+                    broadcastLock(win.frames[i], locked);
+                }
             }
+            broadcastLock(window, locked);
         })();
         """
         webView.evaluateJavaScript(js, completionHandler: nil)

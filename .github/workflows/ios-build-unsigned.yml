@@ -1,0 +1,58 @@
+name: iOS Build (unsigned .ipa) for Sideloadly
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+
+jobs:
+  build-unsigned:
+    name: Build unsigned .ipa artifact
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+
+      - name: Install dependencies
+        run: |
+          if [ -f package.json ]; then npm ci; fi
+
+      - name: Install CocoaPods
+        run: |
+          sudo gem install cocoapods -v 1.12.1 || true
+
+      - name: Ensure Capacitor iOS platform
+        run: |
+          npx cap sync ios
+
+      - name: Build unsigned .app archive
+        working-directory: ios/App
+        run: |
+          set -e
+          ARCHIVE_PATH="$(pwd)/build/App.xcarchive"
+          xcodebuild -workspace App.xcworkspace -scheme App -configuration Release -sdk iphoneos -archivePath "$ARCHIVE_PATH" archive CODE_SIGNING_ALLOWED=NO
+
+      - name: Pack unsigned .ipa
+        working-directory: ios/App
+        run: |
+          set -e
+          ARCHIVE_DIR="$(pwd)/build/App.xcarchive"
+          APP_PATH="$ARCHIVE_DIR/Products/Applications/App.app"
+          mkdir -p payload
+          rm -rf payload/Payload || true
+          mkdir -p Payload
+          cp -R "$APP_PATH" Payload/
+          zip -r ../unsigned-App.ipa Payload
+          ls -la ../unsigned-App.ipa
+
+      - name: Upload unsigned .ipa artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-unsigned-ipa
+          path: ios/App/unsigned-App.ipa

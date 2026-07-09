@@ -22,6 +22,7 @@ jobs:
       - name: Install dependencies
         run: |
           if [ -f package.json ]; then npm ci; fi
+          if [ -f capacitor-app/package.json ]; then (cd capacitor-app && npm ci); fi
 
       - name: Install CocoaPods
         run: |
@@ -29,6 +30,7 @@ jobs:
 
       - name: Ensure Capacitor iOS platform
         run: |
+          cd capacitor-app
           npx cap sync ios
 
       - name: Build unsigned .app archive

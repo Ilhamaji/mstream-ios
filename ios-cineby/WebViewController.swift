@@ -824,19 +824,35 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate, W
                     document.head.appendChild(style);
                   }
                   style.innerHTML = `
-                    /* Aggressive hiding of all controls inside locked frames */
-                    .playback-locked [class*="controls" i]:not(video):not(iframe):not(body):not(html),
-                    .playback-locked [class*="controlbar" i]:not(video):not(iframe):not(body):not(html),
-                    .playback-locked [class*="control-bar" i]:not(video):not(iframe):not(body):not(html),
-                    .playback-locked [class*="button" i]:not(video):not(iframe),
-                    .playback-locked [class*="btn" i]:not(video):not(iframe),
+                    /* Known Player Controls - Safe and Instant Hiding */
+                    .playback-locked .jw-controls,
+                    .playback-locked .jw-controlbar,
+                    .playback-locked .jw-title,
+                    .playback-locked .jw-logo,
+                    .playback-locked .jw-settings-menu,
+                    .playback-locked .vjs-control-bar,
+                    .playback-locked .vjs-big-play-button,
+                    .playback-locked .vjs-loading-spinner,
+                    .playback-locked .plyr__controls,
+                    .playback-locked .plyr__control--overlaid,
+                    .playback-locked .art-control,
+                    .playback-locked .art-controls,
+                    .playback-locked .art-bottom,
+                    .playback-locked .art-progress,
+                    .playback-locked .art-state,
+                    .playback-locked .art-play,
+                    .playback-locked .art-poster,
+                    .playback-locked .art-layer-mask,
+                    .playback-locked .art-layer,
+                    .playback-locked .art-layers,
+                    .playback-locked .dplayer-controller,
+                    .playback-locked .dplayer-bar-wrap,
+                    .playback-locked .shaka-bottom-controls,
+                    .playback-locked .shaka-settings-menu,
+                    .playback-locked .fp-controls,
+                    .playback-locked .fp-ui,
                     .playback-locked button:not(video):not(iframe),
-                    .playback-locked a:not(video):not(iframe),
-                    .playback-locked [id*="controls" i]:not(video):not(iframe):not(body):not(html),
-                    .playback-locked [id*="controlbar" i]:not(video):not(iframe):not(body):not(html),
-                    .playback-locked [id*="control-bar" i]:not(video):not(iframe):not(body):not(html),
-                    .playback-locked [id*="button" i]:not(video):not(iframe),
-                    .playback-locked [id*="btn" i]:not(video):not(iframe) {
+                    .playback-locked a:not(video):not(iframe) {
                         display: none !important;
                         opacity: 0 !important;
                         visibility: hidden !important;
@@ -1574,16 +1590,8 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate, W
                 '.art-control,.art-controls,.art-bottom,.art-progress,.art-state,.art-play { display:none!important; opacity:0!important; }',
                 '.dplayer-controller,.dplayer-bar-wrap { display:none!important; opacity:0!important; }',
                 '.shaka-bottom-controls,.shaka-settings-menu { display:none!important; opacity:0!important; }',
-                /* Dynamic Wildcard CSS overrides (excluding video and iframe) */
-                '[class*="controls" i]:not(video):not(iframe):not(body):not(html) { display:none!important; opacity:0!important; visibility:hidden!important; pointer-events:none!important; }',
-                '[class*="controlbar" i]:not(video):not(iframe):not(body):not(html) { display:none!important; opacity:0!important; visibility:hidden!important; pointer-events:none!important; }',
-                '[class*="control-bar" i]:not(video):not(iframe):not(body):not(html) { display:none!important; opacity:0!important; visibility:hidden!important; pointer-events:none!important; }',
-                '[class*="button" i]:not(video):not(iframe), [class*="btn" i]:not(video):not(iframe) { display:none!important; opacity:0!important; visibility:hidden!important; pointer-events:none!important; }',
-                'button:not(video):not(iframe), a:not(video):not(iframe) { display:none!important; opacity:0!important; visibility:hidden!important; pointer-events:none!important; }',
-                '[id*="controls" i]:not(video):not(iframe):not(body):not(html) { display:none!important; opacity:0!important; visibility:hidden!important; pointer-events:none!important; }',
-                '[id*="controlbar" i]:not(video):not(iframe):not(body):not(html) { display:none!important; opacity:0!important; visibility:hidden!important; pointer-events:none!important; }',
-                '[id*="control-bar" i]:not(video):not(iframe):not(body):not(html) { display:none!important; opacity:0!important; visibility:hidden!important; pointer-events:none!important; }',
-                '[id*="button" i]:not(video):not(iframe), [id*="btn" i]:not(video):not(iframe) { display:none!important; opacity:0!important; visibility:hidden!important; pointer-events:none!important; }'
+                /* Known Player Controls and native elements only to protect parent wrappers */
+                'button:not(video):not(iframe), a:not(video):not(iframe) { display:none!important; opacity:0!important; visibility:hidden!important; pointer-events:none!important; }'
             ].join(' ');
             
             function injectCSS(doc) {

@@ -10,5 +10,20 @@
       This is a placeholder webdir for Capacitor. The app opens
       https://cineby.at when running.
     </p>
+    <script>
+      // Force window.open and target="_blank" navigations to stay inside the app
+      window.open = (url) => {
+        window.location.href = url;
+      };
+
+      document.addEventListener("click", (event) => {
+        const anchor = event.target.closest("a");
+        if (!anchor) return;
+        if (anchor.target === "_blank") {
+          event.preventDefault();
+          window.location.href = anchor.href;
+        }
+      });
+    </script>
   </body>
 </html>

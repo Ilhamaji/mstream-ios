@@ -63,6 +63,70 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate, W
         let earlyJS = """
         (function() {
           try {
+            // Block untrusted clicks (programmatic clicks from ad scripts) on player controls
+            document.addEventListener('click', function(e) {
+              if (e.target && !e.isTrusted) {
+                var target = e.target;
+                var isPlayerControl = target.nodeName === 'BUTTON' || 
+                                      (target.closest && (
+                                        target.closest('.jw-controlbar') || 
+                                        target.closest('.plyr__controls') || 
+                                        target.closest('.art-controls') || 
+                                        target.closest('.vjs-control-bar') ||
+                                        target.closest('.dplayer-controller') ||
+                                        target.closest('.player-controls') ||
+                                        target.closest('.video-controls')
+                                      ));
+                if (isPlayerControl) {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }
+              }
+            }, true);
+
+            // Intercept currentTime changes to prevent automated skipping when locked
+            if (typeof HTMLMediaElement !== 'undefined') {
+              var origCurrentTime = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, 'currentTime');
+              if (origCurrentTime && origCurrentTime.set) {
+                Object.defineProperty(HTMLMediaElement.prototype, 'currentTime', {
+                  get: function() {
+                    return origCurrentTime.get.call(this);
+                  },
+                  set: function(val) {
+                    var isLocked = document.body.classList.contains('playback-locked') || 
+                                   document.documentElement.classList.contains('playback-locked');
+                    if (isLocked) {
+                      var cur = origCurrentTime.get.call(this);
+                      var diff = Math.abs(val - cur);
+                      // Block significant jumps (> 1.5s) when locked
+                      if (diff > 1.5) {
+                        return;
+                      }
+                    }
+                    origCurrentTime.set.call(this, val);
+                  },
+                  configurable: true,
+                  enumerable: true
+                });
+              }
+
+              // Intercept fastSeek to prevent automated skipping when locked
+              if (HTMLMediaElement.prototype.fastSeek) {
+                var origFastSeek = HTMLMediaElement.prototype.fastSeek;
+                HTMLMediaElement.prototype.fastSeek = function(val) {
+                  var isLocked = document.body.classList.contains('playback-locked') || 
+                                 document.documentElement.classList.contains('playback-locked');
+                  if (isLocked) {
+                    var cur = this.currentTime;
+                    if (Math.abs(val - cur) > 1.5) {
+                      return;
+                    }
+                  }
+                  origFastSeek.call(this, val);
+                };
+              }
+            }
+
             // Intercept double-taps to prevent players from automatically skipping
             var lastTouchTime = 0;
             document.addEventListener('touchstart', function(e) {

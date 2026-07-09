@@ -75,6 +75,62 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate, W
             setInterval(forcePlaysInline, 1000);
             forcePlaysInline();
 
+            // Enable iframe fullscreen attributes
+            function enableIframeFullscreen() {
+              var iframes = document.querySelectorAll('iframe');
+              iframes.forEach(function(iframe) {
+                if (!iframe.hasAttribute('allowfullscreen')) {
+                  iframe.setAttribute('allowfullscreen', 'true');
+                }
+                if (!iframe.hasAttribute('allow')) {
+                  iframe.setAttribute('allow', 'autoplay; fullscreen');
+                } else {
+                  var allowVal = iframe.getAttribute('allow');
+                  if (!allowVal.includes('fullscreen')) {
+                    iframe.setAttribute('allow', allowVal + '; fullscreen');
+                  }
+                }
+              });
+            }
+            var iframeObserver = new MutationObserver(enableIframeFullscreen);
+            iframeObserver.observe(document.body, { childList: true, subtree: true });
+            setInterval(enableIframeFullscreen, 1000);
+            enableIframeFullscreen();
+
+            // Intercept Element requestFullscreen API and notify native Swift side
+            try {
+              var triggerNativeRotation = function() {
+                try {
+                  window.webkit.messageHandlers.videoDetector.postMessage({ triggerRotation: true });
+                } catch (e) {}
+              };
+              if (Element.prototype.requestFullscreen) {
+                var origRequest = Element.prototype.requestFullscreen;
+                Element.prototype.requestFullscreen = function() {
+                  triggerNativeRotation();
+                  return Promise.resolve();
+                };
+              }
+              if (Element.prototype.webkitRequestFullscreen) {
+                Element.prototype.webkitRequestFullscreen = function() {
+                  triggerNativeRotation();
+                  return Promise.resolve();
+                };
+              }
+              if (typeof HTMLVideoElement !== 'undefined') {
+                if (HTMLVideoElement.prototype.webkitEnterFullscreen) {
+                  HTMLVideoElement.prototype.webkitEnterFullscreen = function() {
+                    triggerNativeRotation();
+                  };
+                }
+                if (HTMLVideoElement.prototype.webkitEnterFullScreen) {
+                  HTMLVideoElement.prototype.webkitEnterFullScreen = function() {
+                    triggerNativeRotation();
+                  };
+                }
+              }
+            } catch(e) {}
+
             // Video presence detection (only post on state change)
             var lastHasVideo = false;
             function checkVideoPresence() {
@@ -84,13 +140,27 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate, W
                 try {
                   window.webkit.messageHandlers.videoDetector.postMessage({ hasVideo: hasVideo });
                 } catch (e) {}
+                // If we have video inside this frame/iframe, broadcast to parent window
+                if (hasVideo && window.parent !== window) {
+                  window.parent.postMessage({ type: 'iAmVideoPlayer' }, '*');
+                }
               }
             }
             setInterval(checkVideoPresence, 1000);
             checkVideoPresence();
 
-            // Listen for playback lock messages and forward recursively
+            // Listen for messages from child frames to mark active iframe player
             window.addEventListener('message', function(event) {
+              if (event.data && event.data.type === 'iAmVideoPlayer') {
+                var iframes = document.querySelectorAll('iframe');
+                for (var i = 0; i < iframes.length; i++) {
+                  if (iframes[i].contentWindow === event.source) {
+                    iframes[i].classList.add('active-video-player');
+                    break;
+                  }
+                }
+              }
+
               if (event.data && event.data.type === 'playbackLock') {
                 var locked = event.data.locked;
                 
@@ -675,11 +745,19 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate, W
 
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
         if message.name == "videoDetector" {
-            guard let body = message.body as? [String: Any],
-                  let hasVideo = body["hasVideo"] as? Bool else { return }
+            guard let body = message.body as? [String: Any] else { return }
             
-            NSLog("videoDetector received hasVideo: \(hasVideo)")
-            updateRotateButtonVisibility(hasVideo: hasVideo)
+            if let hasVideo = body["hasVideo"] as? Bool {
+                NSLog("videoDetector received hasVideo: \(hasVideo)")
+                updateRotateButtonVisibility(hasVideo: hasVideo)
+            }
+            
+            if let triggerRotation = body["triggerRotation"] as? Bool, triggerRotation {
+                NSLog("videoDetector received triggerRotation request")
+                if !isLandscapeRotated {
+                    setOrientationVisual(true)
+                }
+            }
         }
     }
 
@@ -781,14 +859,14 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate, W
             if (\(landscape)) {
                 meta.setAttribute('content', 'width=\(width), height=\(height), initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover');
                 
-                // Force HTML and Body to be full screen
+                // Force HTML, Body, and active video frame to be full screen
                 var style = document.getElementById('fullscreen-override-style');
                 if (!style) {
                     style = document.createElement('style');
                     style.id = 'fullscreen-override-style';
                     document.head.appendChild(style);
                 }
-                style.innerHTML = 'html, body { width: 100% !important; height: 100% !important; margin: 0 !important; padding: 0 !important; overflow: hidden !important; } video { object-fit: contain !important; }';
+                style.innerHTML = 'html, body { width: 100% !important; height: 100% !important; margin: 0 !important; padding: 0 !important; overflow: hidden !important; background: #000 !important; } iframe.active-video-player { position: fixed !important; top: 0 !important; left: 0 !important; width: 100% !important; height: 100% !important; z-index: 999999 !important; background: #000 !important; border: none !important; } video { position: fixed !important; top: 0 !important; left: 0 !important; width: 100% !important; height: 100% !important; z-index: 999999 !important; background: #000 !important; object-fit: contain !important; }';
             } else {
                 meta.setAttribute('content', 'width=device-width, initial-scale=1.0, viewport-fit=cover');
                 var style = document.getElementById('fullscreen-override-style');

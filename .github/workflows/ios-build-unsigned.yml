@@ -35,6 +35,12 @@ jobs:
       - name: Ensure Capacitor iOS platform
         run: |
           cd capacitor-app
+          # If iOS platform hasn't been added, add it
+          if [ -d ios ] || [ -d ios/App ]; then
+            echo "iOS platform already added"
+          else
+            npx --yes @capacitor/cli add ios
+          fi
           npx --yes @capacitor/cli sync ios
 
       - name: Build unsigned .app archive

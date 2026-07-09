@@ -143,10 +143,10 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate {
         containerView.addSubview(webView)
 
         webViewConstraints = [
-            webView.topAnchor.constraint(equalTo: containerView.topAnchor),
-            webView.bottomAnchor.constraint(equalTo: containerView.bottomAnchor),
-            webView.leadingAnchor.constraint(equalTo: containerView.leadingAnchor),
-            webView.trailingAnchor.constraint(equalTo: containerView.trailingAnchor)
+            webView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            webView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
+            webView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            webView.trailingAnchor.constraint(equalTo: view.trailingAnchor)
         ]
         NSLayoutConstraint.activate(webViewConstraints)
     }

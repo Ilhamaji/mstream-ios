@@ -630,10 +630,12 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate, W
                     }
                     var selectors = [
                       'button', 'a', '.controls', '.control-bar', '.controlbar',
-                      '[class*="control" i]', '[class*="btn" i]', '[class*="button" i]',
+                      '[class*="controls" i]', '[class*="controlbar" i]', '[class*="control-bar" i]',
+                      '[class*="btn" i]', '[class*="button" i]',
                       '[class*="menu" i]', '[class*="panel" i]', '[class*="overlay" i]',
                       '[class*="title" i]', '[class*="logo" i]',
-                      '[id*="control" i]', '[id*="btn" i]', '[id*="button" i]',
+                      '[id*="controls" i]', '[id*="controlbar" i]', '[id*="control-bar" i]',
+                      '[id*="btn" i]', '[id*="button" i]',
                       '.jw-controls', '.jw-controlbar', '.vjs-control-bar', '.plyr__controls',
                       '.art-controls', '.art-bottom', '.dplayer-controller', '.shaka-bottom-controls'
                     ];
@@ -644,7 +646,7 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate, W
                           var el = elements[i];
                           if (el.id === 'mstream-controls-overlay') continue;
                           if (el.closest('#mstream-controls-overlay')) continue;
-                          if (el.nodeName === 'VIDEO' || el.nodeName === 'BODY' || el.nodeName === 'HTML') continue;
+                          if (el.nodeName === 'VIDEO' || el.nodeName === 'IFRAME' || el.nodeName === 'BODY' || el.nodeName === 'HTML') continue;
                           if (el.classList.contains('jwplayer') || el.classList.contains('plyr') || 
                               el.classList.contains('artplayer') || el.classList.contains('video-js') || 
                               el.classList.contains('dplayer')) continue;
@@ -679,10 +681,12 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate, W
                   // Restore elements by clearing the inline properties
                   var selectors = [
                     'button', 'a', '.controls', '.control-bar', '.controlbar',
-                    '[class*="control" i]', '[class*="btn" i]', '[class*="button" i]',
+                    '[class*="controls" i]', '[class*="controlbar" i]', '[class*="control-bar" i]',
+                    '[class*="btn" i]', '[class*="button" i]',
                     '[class*="menu" i]', '[class*="panel" i]', '[class*="overlay" i]',
                     '[class*="title" i]', '[class*="logo" i]',
-                    '[id*="control" i]', '[id*="btn" i]', '[id*="button" i]',
+                    '[id*="controls" i]', '[id*="controlbar" i]', '[id*="control-bar" i]',
+                    '[id*="btn" i]', '[id*="button" i]',
                     '.jw-controls', '.jw-controlbar', '.jw-settings-menu', '.jw-settings-submenu',
                     '.art-controls', '.art-bottom'
                   ];
@@ -712,23 +716,25 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate, W
                   }
                   style.innerHTML = `
                     /* Aggressive hiding of all controls inside locked frames */
-                    .playback-locked [class*="control" i]:not(video):not(body):not(html),
-                    .playback-locked [class*="player" i]:not(video):not(body):not(html):not(.jwplayer):not(.plyr):not(.artplayer):not(.video-js):not(.dplayer),
-                    .playback-locked [class*="button" i]:not(video),
-                    .playback-locked [class*="btn" i]:not(video),
-                    .playback-locked [class*="menu" i]:not(video),
-                    .playback-locked [class*="tooltip" i]:not(video),
-                    .playback-locked [class*="title" i]:not(video),
-                    .playback-locked [class*="logo" i]:not(video),
-                    .playback-locked [class*="banner" i]:not(video),
-                    .playback-locked [class*="loading" i]:not(video),
-                    .playback-locked [class*="spinner" i]:not(video),
-                    .playback-locked button:not(video),
-                    .playback-locked a:not(video),
-                    .playback-locked [id*="control" i]:not(video):not(body):not(html),
-                    .playback-locked [id*="player" i]:not(video):not(body):not(html):not(.jwplayer):not(.plyr):not(.artplayer):not(.video-js):not(.dplayer),
-                    .playback-locked [id*="button" i]:not(video),
-                    .playback-locked [id*="btn" i]:not(video) {
+                    .playback-locked [class*="controls" i]:not(video):not(iframe):not(body):not(html),
+                    .playback-locked [class*="controlbar" i]:not(video):not(iframe):not(body):not(html),
+                    .playback-locked [class*="control-bar" i]:not(video):not(iframe):not(body):not(html),
+                    .playback-locked [class*="button" i]:not(video):not(iframe),
+                    .playback-locked [class*="btn" i]:not(video):not(iframe),
+                    .playback-locked [class*="menu" i]:not(video):not(iframe),
+                    .playback-locked [class*="tooltip" i]:not(video):not(iframe),
+                    .playback-locked [class*="title" i]:not(video):not(iframe),
+                    .playback-locked [class*="logo" i]:not(video):not(iframe),
+                    .playback-locked [class*="banner" i]:not(video):not(iframe),
+                    .playback-locked [class*="loading" i]:not(video):not(iframe),
+                    .playback-locked [class*="spinner" i]:not(video):not(iframe),
+                    .playback-locked button:not(video):not(iframe),
+                    .playback-locked a:not(video):not(iframe),
+                    .playback-locked [id*="controls" i]:not(video):not(iframe):not(body):not(html),
+                    .playback-locked [id*="controlbar" i]:not(video):not(iframe):not(body):not(html),
+                    .playback-locked [id*="control-bar" i]:not(video):not(iframe):not(body):not(html),
+                    .playback-locked [id*="button" i]:not(video):not(iframe),
+                    .playback-locked [id*="btn" i]:not(video):not(iframe) {
                         display: none !important;
                         opacity: 0 !important;
                         visibility: hidden !important;
@@ -1464,16 +1470,18 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate, W
                 '.art-control,.art-controls,.art-bottom,.art-progress,.art-state,.art-play { display:none!important; opacity:0!important; }',
                 '.dplayer-controller,.dplayer-bar-wrap { display:none!important; opacity:0!important; }',
                 '.shaka-bottom-controls,.shaka-settings-menu { display:none!important; opacity:0!important; }',
-                /* Dynamic Wildcard CSS overrides */
-                '[class*="control" i]:not(video):not(body):not(html) { display:none!important; opacity:0!important; visibility:hidden!important; pointer-events:none!important; }',
-                '[class*="player" i]:not(video):not(body):not(html):not(.jwplayer):not(.plyr):not(.artplayer):not(.video-js):not(.dplayer) { display:none!important; opacity:0!important; visibility:hidden!important; pointer-events:none!important; }',
-                '[class*="button" i]:not(video), [class*="btn" i]:not(video), [class*="menu" i]:not(video) { display:none!important; opacity:0!important; visibility:hidden!important; pointer-events:none!important; }',
-                '[class*="tooltip" i]:not(video), [class*="title" i]:not(video), [class*="logo" i]:not(video) { display:none!important; opacity:0!important; visibility:hidden!important; pointer-events:none!important; }',
-                '[class*="banner" i]:not(video), [class*="loading" i]:not(video), [class*="spinner" i]:not(video) { display:none!important; opacity:0!important; visibility:hidden!important; pointer-events:none!important; }',
-                'button:not(video), a:not(video) { display:none!important; opacity:0!important; visibility:hidden!important; pointer-events:none!important; }',
-                '[id*="control" i]:not(video):not(body):not(html) { display:none!important; opacity:0!important; visibility:hidden!important; pointer-events:none!important; }',
-                '[id*="player" i]:not(video):not(body):not(html):not(.jwplayer):not(.plyr):not(.artplayer):not(.video-js):not(.dplayer) { display:none!important; opacity:0!important; visibility:hidden!important; pointer-events:none!important; }',
-                '[id*="button" i]:not(video), [id*="btn" i]:not(video) { display:none!important; opacity:0!important; visibility:hidden!important; pointer-events:none!important; }'
+                /* Dynamic Wildcard CSS overrides (excluding video and iframe) */
+                '[class*="controls" i]:not(video):not(iframe):not(body):not(html) { display:none!important; opacity:0!important; visibility:hidden!important; pointer-events:none!important; }',
+                '[class*="controlbar" i]:not(video):not(iframe):not(body):not(html) { display:none!important; opacity:0!important; visibility:hidden!important; pointer-events:none!important; }',
+                '[class*="control-bar" i]:not(video):not(iframe):not(body):not(html) { display:none!important; opacity:0!important; visibility:hidden!important; pointer-events:none!important; }',
+                '[class*="button" i]:not(video):not(iframe), [class*="btn" i]:not(video):not(iframe), [class*="menu" i]:not(video):not(iframe) { display:none!important; opacity:0!important; visibility:hidden!important; pointer-events:none!important; }',
+                '[class*="tooltip" i]:not(video):not(iframe), [class*="title" i]:not(video):not(iframe), [class*="logo" i]:not(video):not(iframe) { display:none!important; opacity:0!important; visibility:hidden!important; pointer-events:none!important; }',
+                '[class*="banner" i]:not(video):not(iframe), [class*="loading" i]:not(video):not(iframe), [class*="spinner" i]:not(video):not(iframe) { display:none!important; opacity:0!important; visibility:hidden!important; pointer-events:none!important; }',
+                'button:not(video):not(iframe), a:not(video):not(iframe) { display:none!important; opacity:0!important; visibility:hidden!important; pointer-events:none!important; }',
+                '[id*="controls" i]:not(video):not(iframe):not(body):not(html) { display:none!important; opacity:0!important; visibility:hidden!important; pointer-events:none!important; }',
+                '[id*="controlbar" i]:not(video):not(iframe):not(body):not(html) { display:none!important; opacity:0!important; visibility:hidden!important; pointer-events:none!important; }',
+                '[id*="control-bar" i]:not(video):not(iframe):not(body):not(html) { display:none!important; opacity:0!important; visibility:hidden!important; pointer-events:none!important; }',
+                '[id*="button" i]:not(video):not(iframe), [id*="btn" i]:not(video):not(iframe) { display:none!important; opacity:0!important; visibility:hidden!important; pointer-events:none!important; }'
             ].join(' ');
             
             function injectCSS(doc) {

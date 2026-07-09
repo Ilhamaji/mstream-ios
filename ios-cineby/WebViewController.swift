@@ -86,10 +86,13 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate {
 
     func setupNativeRotateButton() {
         nativeRotateButton = UIButton(type: .system)
-        nativeRotateButton.setTitle("Rotate", for: .normal)
+        nativeRotateButton.setTitle("Portrait ↻", for: .normal)
         nativeRotateButton.setTitleColor(.white, for: .normal)
-        nativeRotateButton.backgroundColor = UIColor(white: 0, alpha: 0.6)
-        nativeRotateButton.layer.cornerRadius = 8
+        nativeRotateButton.backgroundColor = UIColor(red: 0.1, green: 0.1, blue: 0.1, alpha: 0.8)
+        nativeRotateButton.layer.borderColor = UIColor.white.cgColor
+        nativeRotateButton.layer.borderWidth = 1
+        nativeRotateButton.layer.cornerRadius = 10
+        nativeRotateButton.titleLabel?.font = UIFont.boldSystemFont(ofSize: 14)
         nativeRotateButton.translatesAutoresizingMaskIntoConstraints = false
         nativeRotateButton.isHidden = true
         nativeRotateButton.addTarget(self, action: #selector(nativeRotateTapped), for: .touchUpInside)
@@ -101,8 +104,8 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate {
     }
 
     func setupNavigationBarRotateButton() {
-        let rotateImage = UIImage(systemName: "arrow.triangle.2.circlepath")
-        let rotateButton = UIBarButtonItem(image: rotateImage, style: .plain, target: self, action: #selector(navigationRotateTapped))
+        let rotateButton = UIBarButtonItem(title: "Rotate ↻", style: .plain, target: self, action: #selector(navigationRotateTapped))
+        rotateButton.tintColor = .systemBlue
         self.navigationItem.rightBarButtonItem = rotateButton
     }
 
@@ -110,17 +113,19 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate {
         NSLayoutConstraint.deactivate(rotateButtonConstraints)
         
         if landscape {
+            // Physical bottom-left of screen acts as visual bottom-right in landscape mode
             rotateButtonConstraints = [
-                nativeRotateButton.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor, constant: 16),
-                nativeRotateButton.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -16),
-                nativeRotateButton.widthAnchor.constraint(greaterThanOrEqualToConstant: 72),
+                nativeRotateButton.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor, constant: 20),
+                nativeRotateButton.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -20),
+                nativeRotateButton.widthAnchor.constraint(equalToConstant: 100),
                 nativeRotateButton.heightAnchor.constraint(equalToConstant: 40)
             ]
         } else {
+            // Normal bottom-right safe area in portrait
             rotateButtonConstraints = [
-                nativeRotateButton.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -16),
-                nativeRotateButton.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -16),
-                nativeRotateButton.widthAnchor.constraint(greaterThanOrEqualToConstant: 72),
+                nativeRotateButton.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -20),
+                nativeRotateButton.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -20),
+                nativeRotateButton.widthAnchor.constraint(equalToConstant: 100),
                 nativeRotateButton.heightAnchor.constraint(equalToConstant: 40)
             ]
         }

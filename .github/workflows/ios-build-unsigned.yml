@@ -21,8 +21,12 @@ jobs:
 
       - name: Install dependencies
         run: |
-          if [ -f package.json ]; then npm ci; fi
-          if [ -f capacitor-app/package.json ]; then (cd capacitor-app && npm ci); fi
+          if [ -f package.json ]; then
+            if [ -f package-lock.json ]; then npm ci; else npm install; fi
+          fi
+          if [ -f capacitor-app/package.json ]; then
+            if [ -f capacitor-app/package-lock.json ]; then (cd capacitor-app && npm ci); else (cd capacitor-app && npm install); fi
+          fi
 
       - name: Install CocoaPods
         run: |

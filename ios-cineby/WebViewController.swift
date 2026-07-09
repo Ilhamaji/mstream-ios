@@ -176,7 +176,7 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate, W
                     .jw-controls, .jw-controlbar, .jw-title, .jw-logo, .jw-nextup-container, .jw-display, .jw-display-icon, .jw-display-icon-container,
                     .vjs-control-bar, .vjs-big-play-button, .vjs-loading-spinner, .vjs-poster,
                     .plyr__controls, 
-                    .art-control, .art-controls, .art-mask, .art-state, .art-state-play, .art-play, .art-poster,
+                    .art-control, .art-controls, .art-mask, .art-state, .art-state-play, .art-play, .art-poster, .art-bottom, .art-progress,
                     [class*="control" i], 
                     [class*="toolbar" i], 
                     [class*="play-button" i], 
@@ -204,7 +204,15 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate, W
                     [class*="logo" i],
                     [class*="menu" i],
                     [class*="settings" i],
-                    [class*="setting" i] {
+                    [class*="setting" i],
+                    [class*="bottom-bar" i],
+                    [class*="control-bar" i],
+                    [class*="controls-bar" i],
+                    [class*="player-bar" i],
+                    [class*="bottom-controls" i],
+                    [class*="controller" i],
+                    [class*="dplayer" i],
+                    [class*="shaka" i] {
                         display: none !important;
                         opacity: 0 !important;
                         visibility: hidden !important;

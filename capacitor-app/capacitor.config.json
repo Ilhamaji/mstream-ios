@@ -1,6 +1,6 @@
 {
-  "appId": "com.example.cineby",
-  "appName": "Cineby",
+  "appId": "com.example.mstream",
+  "appName": "Mstream",
   "webDir": "www",
   "bundledWebRuntime": false,
   "server": {

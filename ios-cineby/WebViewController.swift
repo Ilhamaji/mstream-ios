@@ -1,12 +1,22 @@
 import UIKit
 import WebKit
 
+enum ActiveSite {
+    case none
+    case cineby
+    case nimegami
+}
+
 class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate {
     var webView: WKWebView!
     private var containerView: UIView!
+    private var landingView: UIView!
     private var portraitRotateButton: UIButton!
+    private var switchWebButton: UIButton!
     private var landscapeRotateButton: UIButton!
     private var nativeLockButton: UIButton!
+    
+    private var activeSite: ActiveSite = .none
     private var isFullscreen = false
     private var isLandscapeRotated = false
     private var isPlaybackLocked = false
@@ -20,15 +30,16 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = .systemBackground
+        view.backgroundColor = UIColor(red: 0.05, green: 0.05, blue: 0.07, alpha: 1.0)
         self.navigationController?.setNavigationBarHidden(true, animated: false)
 
         setupWebView()
+        setupSwitchWebButton()
         setupPortraitRotateButton()
         setupLandscapeRotateButton()
         setupNativeLockButton()
         setupTapGesture()
-        loadWebApp()
+        setupLandingView()
     }
 
     func setupWebView() {
@@ -37,6 +48,7 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate {
         let js = """
         (function() {
           try {
+            // Auto playsinline logic
             function forcePlaysInline() {
               var videos = Array.from(document.querySelectorAll('video'));
               videos.forEach(function(video) {
@@ -151,6 +163,209 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate {
         NSLayoutConstraint.activate(webViewConstraints)
     }
 
+    func setupLandingView() {
+        landingView = UIView()
+        landingView.backgroundColor = UIColor(red: 0.05, green: 0.05, blue: 0.07, alpha: 1.0)
+        landingView.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(landingView)
+        view.bringSubviewToFront(landingView)
+        
+        NSLayoutConstraint.activate([
+            landingView.topAnchor.constraint(equalTo: view.topAnchor),
+            landingView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            landingView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            landingView.trailingAnchor.constraint(equalTo: view.trailingAnchor)
+        ])
+        
+        let stackView = UIStackView()
+        stackView.axis = .vertical
+        stackView.alignment = .center
+        stackView.spacing = 24
+        stackView.translatesAutoresizingMaskIntoConstraints = false
+        landingView.addSubview(stackView)
+        
+        NSLayoutConstraint.activate([
+            stackView.centerYAnchor.constraint(equalTo: landingView.centerYAnchor),
+            stackView.leadingAnchor.constraint(equalTo: landingView.leadingAnchor, constant: 40),
+            stackView.trailingAnchor.constraint(equalTo: landingView.trailingAnchor, constant: -40)
+        ])
+        
+        let titleLabel = UILabel()
+        titleLabel.text = "SELECT PORTAL"
+        titleLabel.textColor = .white
+        titleLabel.font = UIFont.systemFont(ofSize: 26, weight: .black)
+        titleLabel.textAlignment = .center
+        stackView.addArrangedSubview(titleLabel)
+        
+        let subtitleLabel = UILabel()
+        subtitleLabel.text = "Choose a streaming portal to begin"
+        subtitleLabel.textColor = .lightGray
+        subtitleLabel.font = UIFont.systemFont(ofSize: 14, weight: .medium)
+        subtitleLabel.textAlignment = .center
+        stackView.addArrangedSubview(subtitleLabel)
+        
+        let spacer = UIView()
+        spacer.translatesAutoresizingMaskIntoConstraints = false
+        spacer.heightAnchor.constraint(equalToConstant: 10).isActive = true
+        stackView.addArrangedSubview(spacer)
+        
+        let cinebyButton = createCardButton(
+            title: "Cineby",
+            subtitle: "Movies & TV Shows",
+            accentColor: UIColor.systemRed,
+            iconName: "play.fill",
+            action: #selector(cinebyCardTapped)
+        )
+        stackView.addArrangedSubview(cinebyButton)
+        
+        let nimegamiButton = createCardButton(
+            title: "Nimegami",
+            subtitle: "Anime Streaming",
+            accentColor: UIColor.systemGreen,
+            iconName: "globe",
+            action: #selector(nimegamiCardTapped)
+        )
+        stackView.addArrangedSubview(nimegamiButton)
+        
+        NSLayoutConstraint.activate([
+            cinebyButton.widthAnchor.constraint(equalTo: stackView.widthAnchor),
+            cinebyButton.heightAnchor.constraint(equalToConstant: 90),
+            nimegamiButton.widthAnchor.constraint(equalTo: stackView.widthAnchor),
+            nimegamiButton.heightAnchor.constraint(equalToConstant: 90)
+        ])
+    }
+    
+    private func createCardButton(title: String, subtitle: String, accentColor: UIColor, iconName: String, action: Selector) -> UIButton {
+        let button = UIButton(type: .custom)
+        button.backgroundColor = UIColor(white: 0.12, alpha: 0.8)
+        button.layer.borderColor = accentColor.cgColor
+        button.layer.borderWidth = 1.5
+        button.layer.cornerRadius = 16
+        button.translatesAutoresizingMaskIntoConstraints = false
+        button.addTarget(self, action: action, for: .touchUpInside)
+        
+        button.addTarget(self, action: #selector(cardTouchDown(_:)), for: .touchDown)
+        button.addTarget(self, action: #selector(cardTouchUp(_:)), for: [.touchUpInside, .touchUpOutside, .touchCancel])
+        
+        let container = UIStackView()
+        container.axis = .horizontal
+        container.alignment = .center
+        container.spacing = 16
+        container.isUserInteractionEnabled = false
+        container.translatesAutoresizingMaskIntoConstraints = false
+        button.addSubview(container)
+        
+        NSLayoutConstraint.activate([
+            container.leadingAnchor.constraint(equalTo: button.leadingAnchor, constant: 20),
+            container.trailingAnchor.constraint(equalTo: button.trailingAnchor, constant: -20),
+            container.topAnchor.constraint(equalTo: button.topAnchor, constant: 15),
+            container.bottomAnchor.constraint(equalTo: button.bottomAnchor, constant: -15)
+        ])
+        
+        let iconCircle = UIView()
+        iconCircle.backgroundColor = accentColor.withAlphaComponent(0.2)
+        iconCircle.layer.cornerRadius = 24
+        iconCircle.translatesAutoresizingMaskIntoConstraints = false
+        iconCircle.widthAnchor.constraint(equalToConstant: 48).isActive = true
+        iconCircle.heightAnchor.constraint(equalToConstant: 48).isActive = true
+        container.addArrangedSubview(iconCircle)
+        
+        let iconView = UIImageView()
+        let config = UIImage.SymbolConfiguration(pointSize: 18, weight: .bold)
+        iconView.image = UIImage(systemName: iconName, withConfiguration: config)
+        iconView.tintColor = accentColor
+        iconView.contentMode = .scaleAspectFit
+        iconView.translatesAutoresizingMaskIntoConstraints = false
+        iconCircle.addSubview(iconView)
+        
+        NSLayoutConstraint.activate([
+            iconView.centerXAnchor.constraint(equalTo: iconCircle.centerXAnchor),
+            iconView.centerYAnchor.constraint(equalTo: iconCircle.centerYAnchor)
+        ])
+        
+        let textStack = UIStackView()
+        textStack.axis = .vertical
+        textStack.alignment = .leading
+        textStack.spacing = 4
+        textStack.translatesAutoresizingMaskIntoConstraints = false
+        container.addArrangedSubview(textStack)
+        
+        let label = UILabel()
+        label.text = title
+        label.textColor = .white
+        label.font = UIFont.systemFont(ofSize: 20, weight: .bold)
+        textStack.addArrangedSubview(label)
+        
+        let sublabel = UILabel()
+        sublabel.text = subtitle
+        sublabel.textColor = .lightGray
+        sublabel.font = UIFont.systemFont(ofSize: 12, weight: .medium)
+        textStack.addArrangedSubview(sublabel)
+        
+        return button
+    }
+
+    @objc private func cardTouchDown(_ sender: UIButton) {
+        UIView.animate(withDuration: 0.1) {
+            sender.transform = CGAffineTransform(scaleX: 0.95, y: 0.95)
+        }
+    }
+    
+    @objc private func cardTouchUp(_ sender: UIButton) {
+        UIView.animate(withDuration: 0.1) {
+            sender.transform = .identity
+        }
+    }
+    
+    @objc private func cinebyCardTapped() {
+        activeSite = .cineby
+        loadWebApp()
+        animateLandingOut()
+    }
+    
+    @objc private func nimegamiCardTapped() {
+        activeSite = .nimegami
+        loadWebApp()
+        animateLandingOut()
+    }
+    
+    private func animateLandingOut() {
+        UIView.animate(withDuration: 0.4, animations: {
+            self.landingView.alpha = 0
+        }) { _ in
+            self.landingView.isHidden = true
+            self.portraitRotateButton.isHidden = false
+            self.switchWebButton.isHidden = false
+        }
+    }
+
+    func setupSwitchWebButton() {
+        switchWebButton = UIButton(type: .system)
+        let config = UIImage.SymbolConfiguration(pointSize: 18, weight: .bold, scale: .medium)
+        let icon = UIImage(systemName: "arrow.left.arrow.right", withConfiguration: config)
+        switchWebButton.setImage(icon, for: .normal)
+        switchWebButton.tintColor = .white
+        
+        switchWebButton.backgroundColor = UIColor(red: 0.1, green: 0.1, blue: 0.1, alpha: 0.8)
+        switchWebButton.layer.borderColor = UIColor.white.cgColor
+        switchWebButton.layer.borderWidth = 1
+        switchWebButton.layer.cornerRadius = 25
+        switchWebButton.clipsToBounds = true
+        switchWebButton.translatesAutoresizingMaskIntoConstraints = false
+        switchWebButton.isHidden = true // hidden initially
+        switchWebButton.addTarget(self, action: #selector(switchWebTapped), for: .touchUpInside)
+        
+        view.addSubview(switchWebButton)
+        view.bringSubviewToFront(switchWebButton)
+        
+        NSLayoutConstraint.activate([
+            switchWebButton.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -20),
+            switchWebButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 20),
+            switchWebButton.widthAnchor.constraint(equalToConstant: 50),
+            switchWebButton.heightAnchor.constraint(equalToConstant: 50)
+        ])
+    }
+
     func setupPortraitRotateButton() {
         portraitRotateButton = UIButton(type: .system)
         let config = UIImage.SymbolConfiguration(pointSize: 18, weight: .bold, scale: .medium)
@@ -164,7 +379,7 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate {
         portraitRotateButton.layer.cornerRadius = 25
         portraitRotateButton.clipsToBounds = true
         portraitRotateButton.translatesAutoresizingMaskIntoConstraints = false
-        portraitRotateButton.isHidden = false
+        portraitRotateButton.isHidden = true // hidden initially
         portraitRotateButton.addTarget(self, action: #selector(portraitRotateTapped), for: .touchUpInside)
         
         view.addSubview(portraitRotateButton)
@@ -172,7 +387,7 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate {
         
         NSLayoutConstraint.activate([
             portraitRotateButton.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -20),
-            portraitRotateButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 20),
+            portraitRotateButton.topAnchor.constraint(equalTo: switchWebButton.bottomAnchor, constant: 15),
             portraitRotateButton.widthAnchor.constraint(equalToConstant: 50),
             portraitRotateButton.heightAnchor.constraint(equalToConstant: 50)
         ])
@@ -275,7 +490,17 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate {
     }
 
     func loadWebApp() {
-        if let url = URL(string: "https://cineby.at") {
+        var urlString = ""
+        switch activeSite {
+        case .cineby:
+            urlString = "https://cineby.at"
+        case .nimegami:
+            urlString = "https://nimegami.id/"
+        case .none:
+            return
+        }
+        
+        if let url = URL(string: urlString) {
             webView.load(URLRequest(url: url))
         }
     }
@@ -288,6 +513,19 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate {
     @objc func landscapeRotateTapped() {
         NSLog("landscapeRotateTapped called")
         setOrientationVisual(false)
+    }
+
+    @objc func switchWebTapped() {
+        NSLog("switchWebTapped called")
+        
+        UIView.transition(with: self.webView, duration: 0.4, options: .transitionCrossDissolve, animations: {
+            if self.activeSite == .cineby {
+                self.activeSite = .nimegami
+            } else {
+                self.activeSite = .cineby
+            }
+            self.loadWebApp()
+        }, completion: nil)
     }
 
     @objc func nativeLockTapped() {
@@ -431,6 +669,7 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate {
                 self.nativeLockButton.isHidden = false
                 
                 self.portraitRotateButton.isHidden = true
+                self.switchWebButton.isHidden = true
             } else {
                 self.webView.transform = .identity
                 self.landscapeRotateButton.transform = .identity
@@ -440,6 +679,7 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate {
                 self.nativeLockButton.isHidden = true
                 
                 self.portraitRotateButton.isHidden = false
+                self.switchWebButton.isHidden = false
                 
                 self.webView.translatesAutoresizingMaskIntoConstraints = false
                 NSLayoutConstraint.activate(self.webViewConstraints)
@@ -506,7 +746,8 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate {
 
     private func isTrustedURL(_ url: URL) -> Bool {
         guard let host = url.host else { return false }
-        return host.lowercased().contains("cineby")
+        let h = host.lowercased()
+        return h.contains("cineby") || h.contains("nimegami")
     }
 
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {

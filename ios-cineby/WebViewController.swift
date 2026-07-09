@@ -151,6 +151,13 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate {
     func setOrientationVisual(_ landscape: Bool) {
         self.isLandscapeRotated = landscape
         
+        // Update content inset adjustment behavior
+        webView.scrollView.contentInsetAdjustmentBehavior = landscape ? .never : .always
+        if landscape {
+            webView.scrollView.contentInset = .zero
+            webView.scrollView.scrollIndicatorInsets = .zero
+        }
+        
         UIView.animate(withDuration: 0.3) {
             if landscape {
                 NSLayoutConstraint.deactivate(self.webViewConstraints)
@@ -181,6 +188,42 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate {
             
             self.view.layoutIfNeeded()
         }
+        
+        // Inject JS to update the viewport meta tag and force full size
+        let width = landscape ? max(view.bounds.width, view.bounds.height) : min(view.bounds.width, view.bounds.height)
+        let height = landscape ? min(view.bounds.width, view.bounds.height) : max(view.bounds.width, view.bounds.height)
+        
+        let js = """
+        (function() {
+            var meta = document.querySelector('meta[name="viewport"]');
+            if (!meta) {
+                meta = document.createElement('meta');
+                meta.name = 'viewport';
+                document.getElementsByTagName('head')[0].appendChild(meta);
+            }
+            if (\(landscape)) {
+                meta.setAttribute('content', 'width=\(width), height=\(height), initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover');
+                
+                // Force HTML and Body to be full screen
+                var style = document.getElementById('fullscreen-override-style');
+                if (!style) {
+                    style = document.createElement('style');
+                    style.id = 'fullscreen-override-style';
+                    document.head.appendChild(style);
+                }
+                style.innerHTML = 'html, body { width: 100% !important; height: 100% !important; margin: 0 !important; padding: 0 !important; overflow: hidden !important; } video { object-fit: contain !important; }';
+            } else {
+                meta.setAttribute('content', 'width=device-width, initial-scale=1.0, viewport-fit=cover');
+                var style = document.getElementById('fullscreen-override-style');
+                if (style) {
+                    style.remove();
+                }
+            }
+            // Trigger a resize event so the web player adjusts
+            window.dispatchEvent(new Event('resize'));
+        })();
+        """
+        webView.evaluateJavaScript(js, completionHandler: nil)
     }
 
     override var supportedInterfaceOrientations: UIInterfaceOrientationMask {

@@ -34,6 +34,9 @@ if data.get("UISupportedInterfaceOrientations~ipad") != screen_orient:
 if data.get("UIRequiresFullScreen") is not True:
     data["UIRequiresFullScreen"] = True
     changed = True
+if data.get("UIViewControllerBasedStatusBarAppearance") is not True:
+    data["UIViewControllerBasedStatusBarAppearance"] = True
+    changed = True
 for key in ["UIMainStoryboardFile", "NSMainStoryboardFile", "UIMainStoryboardFile~ipad"]:
     if key in data:
         del data[key]
@@ -77,6 +80,7 @@ class WebViewController: UIViewController, WKScriptMessageHandler, WKNavigationD
 
         let contentController = WKUserContentController()
         contentController.add(self, name: "videoVisibility")
+        contentController.add(self, name: "fullscreenState")
 
         let js = """
         (function() {
@@ -93,22 +97,27 @@ class WebViewController: UIViewController, WKScriptMessageHandler, WKNavigationD
               });
             }
 
-            var last = null;
-            function update() {
-              var v = hasVisibleVideo();
-              if (v !== last) {
-                try { window.webkit.messageHandlers.videoVisibility.postMessage(v); } catch(e){}
-                last = v;
-              }
-            }
+                        var last = null;
+                        function update() {
+                            var v = hasVisibleVideo();
+                            if (v !== last) {
+                                try { window.webkit.messageHandlers.videoVisibility.postMessage(v); } catch(e){}
+                                last = v;
+                            }
+                        }
 
-            var observer = new MutationObserver(update);
-            observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'class'] });
-            window.addEventListener('resize', update);
-            window.addEventListener('scroll', update);
-            document.addEventListener('fullscreenchange', update);
-            document.addEventListener('webkitfullscreenchange', update);
-            update();
+                        function postFullscreen() {
+                            var fs = !!(document.fullscreenElement || document.webkitFullscreenElement || document.webkitIsFullScreen);
+                            try { window.webkit.messageHandlers.fullscreenState.postMessage(fs); } catch(e){}
+                        }
+
+                        var observer = new MutationObserver(update);
+                        observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'class'] });
+                        window.addEventListener('resize', update);
+                        window.addEventListener('scroll', update);
+                        document.addEventListener('fullscreenchange', function(){ update(); postFullscreen(); });
+                        document.addEventListener('webkitfullscreenchange', function(){ update(); postFullscreen(); });
+                        update(); postFullscreen();
           } catch (e) { }
         })();
         """
@@ -149,6 +158,9 @@ class WebViewController: UIViewController, WKScriptMessageHandler, WKNavigationD
         nativeRotateButton.isHidden = true
         nativeRotateButton.addTarget(self, action: #selector(nativeRotateTapped), for: .touchUpInside)
         view.addSubview(nativeRotateButton)
+
+        // Ensure button is above the web view
+        view.bringSubviewToFront(nativeRotateButton)
 
         NSLayoutConstraint.activate([
             nativeRotateButton.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -16),
@@ -209,6 +221,7 @@ class WebViewController: UIViewController, WKScriptMessageHandler, WKNavigationD
 
     deinit {
         webView.configuration.userContentController.removeScriptMessageHandler(forName: "videoVisibility")
+        webView.configuration.userContentController.removeScriptMessageHandler(forName: "fullscreenState")
     }
 }
 EOF
@@ -245,6 +258,7 @@ class WebViewController: UIViewController, WKScriptMessageHandler, WKNavigationD
 
         let contentController = WKUserContentController()
         contentController.add(self, name: "videoVisibility")
+        contentController.add(self, name: "fullscreenState")
 
         let js = """
         (function() {
@@ -261,22 +275,27 @@ class WebViewController: UIViewController, WKScriptMessageHandler, WKNavigationD
               });
             }
 
-            var last = null;
-            function update() {
-              var v = hasVisibleVideo();
-              if (v !== last) {
-                try { window.webkit.messageHandlers.videoVisibility.postMessage(v); } catch(e){}
-                last = v;
-              }
-            }
+                        var last = null;
+                        function update() {
+                            var v = hasVisibleVideo();
+                            if (v !== last) {
+                                try { window.webkit.messageHandlers.videoVisibility.postMessage(v); } catch(e){}
+                                last = v;
+                            }
+                        }
 
-            var observer = new MutationObserver(update);
-            observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'class'] });
-            window.addEventListener('resize', update);
-            window.addEventListener('scroll', update);
-            document.addEventListener('fullscreenchange', update);
-            document.addEventListener('webkitfullscreenchange', update);
-            update();
+                        function postFullscreen() {
+                            var fs = !!(document.fullscreenElement || document.webkitFullscreenElement || document.webkitIsFullScreen);
+                            try { window.webkit.messageHandlers.fullscreenState.postMessage(fs); } catch(e){}
+                        }
+
+                        var observer = new MutationObserver(update);
+                        observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'class'] });
+                        window.addEventListener('resize', update);
+                        window.addEventListener('scroll', update);
+                        document.addEventListener('fullscreenchange', function(){ update(); postFullscreen(); });
+                        document.addEventListener('webkitfullscreenchange', function(){ update(); postFullscreen(); });
+                        update(); postFullscreen();
           } catch (e) { }
         })();
         """
@@ -317,6 +336,9 @@ class WebViewController: UIViewController, WKScriptMessageHandler, WKNavigationD
         nativeRotateButton.isHidden = true
         nativeRotateButton.addTarget(self, action: #selector(nativeRotateTapped), for: .touchUpInside)
         view.addSubview(nativeRotateButton)
+
+        // Ensure button is above the web view
+        view.bringSubviewToFront(nativeRotateButton)
 
         NSLayoutConstraint.activate([
             nativeRotateButton.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -16),
@@ -377,6 +399,7 @@ class WebViewController: UIViewController, WKScriptMessageHandler, WKNavigationD
 
     deinit {
         webView.configuration.userContentController.removeScriptMessageHandler(forName: "videoVisibility")
+        webView.configuration.userContentController.removeScriptMessageHandler(forName: "fullscreenState")
     }
 }
 EOF

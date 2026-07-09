@@ -4,6 +4,7 @@ import WebKit
 class WebViewController: UIViewController, WKScriptMessageHandler, WKNavigationDelegate, WKUIDelegate {
     var webView: WKWebView!
     private var nativeRotateButton: UIButton!
+    private var isFullscreen = false
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -18,6 +19,7 @@ class WebViewController: UIViewController, WKScriptMessageHandler, WKNavigationD
     func setupWebView() {
         let contentController = WKUserContentController()
         contentController.add(self, name: "videoVisibility")
+        contentController.add(self, name: "fullscreenState")
 
         let js = """
         (function() {
@@ -34,21 +36,25 @@ class WebViewController: UIViewController, WKScriptMessageHandler, WKNavigationD
               });
             }
 
-            var last = null;
-            function update() {
-              var v = hasVisibleVideo();
-              if (v !== last) {
-                try { window.webkit.messageHandlers.videoVisibility.postMessage(v); } catch(e){}
-                last = v;
-              }
-            }
+                        var last = null;
+                        function update() {
+                            var v = hasVisibleVideo();
+                            if (v !== last) {
+                                try { window.webkit.messageHandlers.videoVisibility.postMessage(v); } catch(e){}
+                                last = v;
+                            }
+                        }
 
             var observer = new MutationObserver(update);
             observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'class'] });
             window.addEventListener('resize', update);
             window.addEventListener('scroll', update);
-            document.addEventListener('fullscreenchange', update);
-            document.addEventListener('webkitfullscreenchange', update);
+                        function postFullscreen() {
+                            var fs = !!(document.fullscreenElement || document.webkitFullscreenElement || document.webkitIsFullScreen);
+                            try { window.webkit.messageHandlers.fullscreenState.postMessage(fs); } catch(e){}
+                        }
+                        document.addEventListener('fullscreenchange', function(){ update(); postFullscreen(); });
+                        document.addEventListener('webkitfullscreenchange', function(){ update(); postFullscreen(); });
             update();
           } catch (e) { }
         })();
@@ -93,6 +99,9 @@ class WebViewController: UIViewController, WKScriptMessageHandler, WKNavigationD
         nativeRotateButton.addTarget(self, action: #selector(nativeRotateTapped), for: .touchUpInside)
         view.addSubview(nativeRotateButton)
 
+        // Ensure button is above the web view
+        view.bringSubviewToFront(nativeRotateButton)
+
         NSLayoutConstraint.activate([
             nativeRotateButton.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -16),
             nativeRotateButton.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -16),
@@ -108,12 +117,19 @@ class WebViewController: UIViewController, WKScriptMessageHandler, WKNavigationD
     }
 
     @objc func nativeRotateTapped() {
+        NSLog("nativeRotateTapped called")
         toggleOrientation()
     }
 
     func toggleOrientation() {
-        let device = UIDevice.current
-        let isPortrait = device.orientation.isPortrait || device.orientation == .unknown
+        let isPortrait: Bool
+        if let scene = view.window?.windowScene {
+            isPortrait = scene.interfaceOrientation.isPortrait
+        } else {
+            let device = UIDevice.current
+            isPortrait = device.orientation.isPortrait || device.orientation == .unknown
+        }
+        NSLog("toggleOrientation: isPortrait=\(isPortrait)")
         if isPortrait {
             setOrientation(.landscapeRight)
         } else {
@@ -139,11 +155,26 @@ class WebViewController: UIViewController, WKScriptMessageHandler, WKNavigationD
         if message.name == "videoVisibility" {
             if let visible = message.body as? Bool {
                 DispatchQueue.main.async {
+                    NSLog("videoVisibility -> \(visible)")
                     self.nativeRotateButton.isHidden = !visible
                 }
             }
             return
         }
+        if message.name == "fullscreenState" {
+            if let fs = message.body as? Bool {
+                DispatchQueue.main.async {
+                    NSLog("fullscreenState -> \(fs)")
+                    self.isFullscreen = fs
+                    self.setNeedsStatusBarAppearanceUpdate()
+                }
+            }
+            return
+        }
+    }
+
+    override var prefersStatusBarHidden: Bool {
+        return isFullscreen
     }
 
     // MARK: WKNavigationDelegate
@@ -166,5 +197,6 @@ class WebViewController: UIViewController, WKScriptMessageHandler, WKNavigationD
 
     deinit {
         webView.configuration.userContentController.removeScriptMessageHandler(forName: "videoVisibility")
+        webView.configuration.userContentController.removeScriptMessageHandler(forName: "fullscreenState")
     }
 }

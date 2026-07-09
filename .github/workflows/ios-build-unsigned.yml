@@ -89,3 +89,23 @@ jobs:
         with:
           name: ios-unsigned-ipa
           path: capacitor-app/ios/App/unsigned-App.ipa
+
+      - name: Create GitHub release for unsigned .ipa
+        id: create_release
+        uses: actions/create-release@v1
+        with:
+          tag_name: ios-unsigned-${{ github.run_number }}
+          release_name: "iOS unsigned IPA #${{ github.run_number }}"
+          body: "Unsigned .ipa built from run ${{ github.run_number }} on ${{ github.ref }}."
+          draft: false
+          prerelease: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload unsigned .ipa to release
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: capacitor-app/ios/App/unsigned-App.ipa
+          asset_name: unsigned-App.ipa
+          asset_content_type: application/octet-stream

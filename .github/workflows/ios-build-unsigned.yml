@@ -62,6 +62,8 @@ jobs:
             perl -pi -e 's/IPHONEOS_DEPLOYMENT_TARGET = .*/IPHONEOS_DEPLOYMENT_TARGET = 26.0/' "$xcfile"
           done
           npx --yes @capacitor/cli copy ios
+          chmod +x patch_ios.sh || true
+          bash patch_ios.sh
           cd ios/App
           if [ -f Podfile ]; then
             pod install --repo-update
@@ -72,7 +74,11 @@ jobs:
         run: |
           set -e
           ARCHIVE_PATH="$(pwd)/build/App.xcarchive"
-          xcodebuild -project App.xcodeproj -scheme App -configuration Release -sdk iphoneos -archivePath "$ARCHIVE_PATH" archive CODE_SIGNING_ALLOWED=NO
+          if [ -d "App.xcworkspace" ]; then
+            xcodebuild -workspace App.xcworkspace -scheme App -configuration Release -sdk iphoneos -archivePath "$ARCHIVE_PATH" archive CODE_SIGNING_ALLOWED=NO
+          else
+            xcodebuild -project App.xcodeproj -scheme App -configuration Release -sdk iphoneos -archivePath "$ARCHIVE_PATH" archive CODE_SIGNING_ALLOWED=NO
+          fi
 
       - name: Pack unsigned .ipa
         working-directory: capacitor-app/ios/App

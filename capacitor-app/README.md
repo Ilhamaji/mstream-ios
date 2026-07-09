@@ -35,6 +35,7 @@ Notes on enabling rotate/fullscreen in native iOS:
 
 - The web-only `screen.orientation.lock()` may not work on iOS Safari or when the WebView is loading a remote site.
 - To programmatically override device orientation inside the native iOS WebView, you need a native injection (see `d:/code/App/cineby/ios-cineby/WebViewController.swift`) or install a screen-orientation plugin (`cordova-plugin-screen-orientation`) and call it from JavaScript.
+- If you are working locally on macOS, run `bash patch_ios.sh` after `npx cap copy ios` to inject the native WKWebView wrapper into the generated iOS project. The GitHub Actions workflow already runs this script before building the `.ipa`.
 
 Example: install Cordova plugin and call from JS (after adding iOS platform on macOS):
 

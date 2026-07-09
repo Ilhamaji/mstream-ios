@@ -165,18 +165,8 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate, W
             setInterval(broadcastActiveSite, 1000);
             broadcastActiveSite();
 
-            // Inject custom Mstream playback controls on Nimegami
-            var currentActiveSite = "";
+            // Inject custom Mstream playback controls on both portals
             function injectMstreamControls() {
-              var referrer = document.referrer || "";
-              var topHost = "";
-              try { topHost = window.top.location.hostname; } catch(e) {}
-              var isNimegami = window.location.hostname.includes('nimegami') || 
-                               referrer.includes('nimegami') || 
-                               topHost.includes('nimegami') ||
-                               currentActiveSite === 'nimegami';
-                               
-              if (!isNimegami) return;
               var video = document.querySelector('video');
               if (!video) return;
               
@@ -290,12 +280,54 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate, W
             setInterval(injectMstreamControls, 1000);
             injectMstreamControls();
 
+            // Persistently hide default player controls, timelines, and timestamps
+            function hideDefaultControls() {
+              var style = document.getElementById('mstream-default-controls-hide-override');
+              if (!style) {
+                style = document.createElement('style');
+                style.id = 'mstream-default-controls-hide-override';
+                document.head.appendChild(style);
+                style.innerHTML = `
+                  .jw-controls, .jw-controlbar, .jw-title, .jw-logo, .jw-nextup-container, .jw-display, .jw-display-icon, .jw-display-icon-container,
+                  .vjs-control-bar, .vjs-big-play-button, .vjs-loading-spinner, .vjs-poster,
+                  .plyr__controls, 
+                  .art-control, .art-controls, .art-mask, .art-state, .art-state-play, .art-play, .art-poster, .art-bottom, .art-progress,
+                  .jw-settings-menu, .jw-settings-submenu, .jw-settings-content, .jw-submenu, .jw-icon-inline, .jw-slider-container, .jw-time-tip,
+                  .dplayer-menu, .dplayer-setting-box, .shaka-settings-menu,
+                  [class*="control" i], [class*="toolbar" i], [class*="play-button" i], [class*="play-icon" i], 
+                  [class*="play-btn" i], [class*="playbutton" i], [class*="playButton" i], [class*="big-play" i], 
+                  [class*="display-icon" i], [class*="display-btn" i], [class*="overlay" i], [class*="mask" i], 
+                  [class*="poster" i], [class*="preview" i], [class*="spinner" i], [class*="loading" i], 
+                  [class*="player-controls" i], [class*="video-controls" i], [class*="button" i], [class*="btn" i], 
+                  [class*="progress" i], [class*="volume" i], [class*="time" i], [class*="title" i], 
+                  [class*="logo" i], [class*="menu" i], [class*="settings" i], [class*="setting" i], 
+                  [class*="bottom-bar" i], [class*="control-bar" i], [class*="controls-bar" i], [class*="player-bar" i], 
+                  [class*="bottom-controls" i], [class*="controller" i], [class*="dplayer" i], [class*="shaka" i] {
+                      display: none !important;
+                      opacity: 0 !important;
+                      visibility: hidden !important;
+                      pointer-events: none !important;
+                  }
+                `;
+              }
+              try {
+                var videos = document.querySelectorAll('video');
+                for (var i = 0; i < videos.length; i++) {
+                  videos[i].controls = false;
+                  videos[i].removeAttribute('controls');
+                }
+              } catch (e) {}
+            }
+            setInterval(hideDefaultControls, 500);
+            hideDefaultControls();
+
+            // Notify native side of frame loading to check/enforce lock state
+            try {
+              window.webkit.messageHandlers.videoDetector.postMessage({ frameLoaded: true });
+            } catch (e) {}
+
             // Listen for messages from child frames
             window.addEventListener('message', function(event) {
-              if (event.data && event.data.type === 'mstreamActiveSite') {
-                currentActiveSite = event.data.site;
-              }
-
               if (event.data && event.data.type === 'iAmVideoPlayer') {
                 var iframes = document.querySelectorAll('iframe');
                 for (var i = 0; i < iframes.length; i++) {
@@ -940,9 +972,14 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate, W
                 try {
                     win.postMessage({ type: 'playbackLock', locked: locked }, '*');
                 } catch (e) {}
-                for (var i = 0; i < win.frames.length; i++) {
-                    broadcastLock(win.frames[i], locked);
-                }
+                try {
+                    var length = win.frames.length;
+                    for (var i = 0; i < length; i++) {
+                        try {
+                            broadcastLock(win.frames[i], locked);
+                        } catch (e) {}
+                    }
+                } catch (e) {}
             }
             broadcastLock(window, locked);
         })();
@@ -1010,6 +1047,13 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate, W
                 NSLog("videoDetector received triggerRotation request")
                 if !isLandscapeRotated {
                     setOrientationVisual(true)
+                }
+            }
+            
+            if let frameLoaded = body["frameLoaded"] as? Bool, frameLoaded {
+                NSLog("videoDetector received frameLoaded. isPlaybackLocked = \(isPlaybackLocked)")
+                if isPlaybackLocked {
+                    broadcastPlaybackLockState(true)
                 }
             }
         }

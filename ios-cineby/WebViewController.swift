@@ -170,8 +170,19 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate, W
               var video = document.querySelector('video');
               if (!video) return;
               
-              var existing = document.getElementById('mstream-controls-overlay');
-              if (existing) return;
+              // Verify if the active video already has controls setup in its parent
+              if (video.dataset.hasMstreamControls === 'true') {
+                var existing = document.getElementById('mstream-controls-overlay');
+                if (existing && existing.parentNode === video.parentNode) {
+                  return;
+                }
+              }
+              
+              // Clean up any stale overlay
+              var stale = document.getElementById('mstream-controls-overlay');
+              if (stale) {
+                stale.remove();
+              }
               
               var overlay = document.createElement('div');
               overlay.id = 'mstream-controls-overlay';
@@ -271,14 +282,44 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate, W
               // Set initial state
               playBtn.innerText = video.paused ? '▶' : '❚❚';
               
+              // Event listeners on parent and video to display controls on interaction
               parent.addEventListener('mousemove', showControls);
-              parent.addEventListener('click', showControls);
-              video.addEventListener('click', showControls);
+              parent.addEventListener('click', showControls, true);
+              parent.addEventListener('touchstart', showControls, {passive: true, capture: true});
+              
+              video.addEventListener('click', showControls, true);
+              video.addEventListener('touchstart', showControls, {passive: true, capture: true});
+              
+              // Mark the video as having controls setup and expose showControls
+              video.dataset.hasMstreamControls = 'true';
+              overlay.showMstreamControls = showControls;
               
               showControls();
             }
             setInterval(injectMstreamControls, 1000);
             injectMstreamControls();
+
+            // Set up global touch/click capture listener to guarantee overlay visibility on iOS
+            if (!window.hasMstreamTouchListeners) {
+              window.hasMstreamTouchListeners = true;
+              var handleGlobalTouch = function(e) {
+                var video = document.querySelector('video');
+                if (!video) return;
+                var overlay = document.getElementById('mstream-controls-overlay');
+                if (!overlay || typeof overlay.showMstreamControls !== 'function') return;
+                
+                if (e.target.id === 'mstream-btn-play' || e.target.id === 'mstream-btn-back' || e.target.id === 'mstream-btn-forward') {
+                  return;
+                }
+                
+                var playerContainer = video.closest('.jwplayer, .video-js, .plyr, .dplayer, .artplayer, [class*="player" i], [id*="player" i]') || video.parentNode;
+                if (playerContainer && playerContainer.contains(e.target)) {
+                  overlay.showMstreamControls();
+                }
+              };
+              document.addEventListener('touchstart', handleGlobalTouch, {passive: true, capture: true});
+              document.addEventListener('click', handleGlobalTouch, {capture: true});
+            }
 
             // Persistently hide default player controls, timelines, and timestamps
             function hideDefaultControls() {

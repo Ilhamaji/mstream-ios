@@ -7,7 +7,7 @@ platform :ios do
     match(type: "appstore", readonly: true)
 
     build_app(
-      workspace: "App.xcworkspace",
+      project: "capacitor-app/ios/App/App.xcodeproj",
       scheme: "App",
       configuration: "Release",
       export_method: "app-store"
@@ -21,11 +21,11 @@ platform :ios do
     match(type: "adhoc", readonly: true)
 
     build_app(
-      workspace: "App.xcworkspace",
+      project: "capacitor-app/ios/App/App.xcodeproj",
       scheme: "App",
       configuration: "Release",
       export_method: "ad-hoc",
-      output_directory: "../artifacts"
+      output_directory: "capacitor-app/ios/artifacts"
     )
   end
 end

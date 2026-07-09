@@ -76,8 +76,8 @@ jobs:
           MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
           APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
           FASTLANE_USER: ${{ secrets.FASTLANE_USER }}
+        working-directory: ${{ github.workspace }}
         run: |
-          cd capacitor-app/ios/App
           fastlane ios build_artifact
 
       - name: Upload .ipa artifact

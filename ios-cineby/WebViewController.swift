@@ -149,6 +149,96 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate, W
             setInterval(checkVideoPresence, 1000);
             checkVideoPresence();
 
+            // Inject custom Mstream playback controls on Nimegami
+            var isNimegami = window.location.hostname.includes('nimegami');
+            function injectMstreamControls() {
+              if (!isNimegami) return;
+              var video = document.querySelector('video');
+              if (!video) return;
+              
+              var existing = document.getElementById('mstream-controls-overlay');
+              if (existing) return;
+              
+              var overlay = document.createElement('div');
+              overlay.id = 'mstream-controls-overlay';
+              overlay.style.cssText = 'position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: flex; align-items: center; justify-content: center; gap: 24px; z-index: 2147483647; pointer-events: auto; opacity: 0; transition: opacity 0.3s ease-in-out; background: rgba(0,0,0,0.4); padding: 12px 24px; border-radius: 30px;';
+              
+              overlay.innerHTML = `
+                <button id="mstream-btn-back" style="width: 50px; height: 50px; border-radius: 25px; border: 1px solid rgba(255,255,255,0.4); background: rgba(20,20,20,0.8); color: white; font-size: 14px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; outline: none; -webkit-tap-highlight-color: transparent;">↺ 5s</button>
+                <button id="mstream-btn-play" style="width: 60px; height: 60px; border-radius: 30px; border: 1px solid rgba(255,255,255,0.4); background: rgba(20,20,20,0.8); color: white; font-size: 20px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; outline: none; -webkit-tap-highlight-color: transparent;">▶</button>
+                <button id="mstream-btn-forward" style="width: 50px; height: 50px; border-radius: 25px; border: 1px solid rgba(255,255,255,0.4); background: rgba(20,20,20,0.8); color: white; font-size: 14px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; outline: none; -webkit-tap-highlight-color: transparent;">5s ↻</button>
+              `;
+              
+              var parent = video.parentNode;
+              if (getComputedStyle(parent).position === 'static') {
+                parent.style.position = 'relative';
+              }
+              parent.appendChild(overlay);
+              
+              var backBtn = overlay.querySelector('#mstream-btn-back');
+              var playBtn = overlay.querySelector('#mstream-btn-play');
+              var forwardBtn = overlay.querySelector('#mstream-btn-forward');
+              
+              var timer = null;
+              function showControls() {
+                if (document.body.classList.contains('playback-locked')) {
+                  hideControls();
+                  return;
+                }
+                overlay.style.opacity = '1';
+                overlay.style.pointerEvents = 'auto';
+                resetTimer();
+              }
+              function hideControls() {
+                overlay.style.opacity = '0';
+                overlay.style.pointerEvents = 'none';
+              }
+              function resetTimer() {
+                clearTimeout(timer);
+                timer = setTimeout(hideControls, 3000);
+              }
+              
+              backBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                video.currentTime = Math.max(0, video.currentTime - 5);
+                showControls();
+              });
+              
+              playBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                if (video.paused) {
+                  video.play();
+                } else {
+                  video.pause();
+                }
+                showControls();
+              });
+              
+              forwardBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                video.currentTime = Math.min(video.duration, video.currentTime + 5);
+                showControls();
+              });
+              
+              video.addEventListener('play', function() {
+                playBtn.innerText = '❚❚';
+              });
+              video.addEventListener('pause', function() {
+                playBtn.innerText = '▶';
+              });
+              
+              // Set initial state
+              playBtn.innerText = video.paused ? '▶' : '❚❚';
+              
+              parent.addEventListener('mousemove', showControls);
+              parent.addEventListener('click', showControls);
+              video.addEventListener('click', showControls);
+              
+              showControls();
+            }
+            setInterval(injectMstreamControls, 1000);
+            injectMstreamControls();
+
             // Listen for messages from child frames to mark active iframe player
             window.addEventListener('message', function(event) {
               if (event.data && event.data.type === 'iAmVideoPlayer') {
@@ -163,6 +253,16 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate, W
 
               if (event.data && event.data.type === 'playbackLock') {
                 var locked = event.data.locked;
+                if (locked) {
+                  document.body.classList.add('playback-locked');
+                  var overlay = document.getElementById('mstream-controls-overlay');
+                  if (overlay) {
+                    overlay.style.opacity = '0';
+                    overlay.style.pointerEvents = 'none';
+                  }
+                } else {
+                  document.body.classList.remove('playback-locked');
+                }
                 
                 // 1. Apply style override in this frame
                 var style = document.getElementById('playback-lock-style-override');

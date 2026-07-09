@@ -20,7 +20,7 @@ A minimalist native iOS wrapper for the movie streaming website [Cineby](https:/
 
 | Main View (Portrait) | Player View (Landscape) |
 | --- | --- |
-| ![Portrait View](screenshots/media__1783615340513.png) | ![Landscape View](screenshots/media__1783614539515.png) |
+| ![Portrait View](screenshots/media__1783615340513.png) | ![Landscape View](screenshots/media__1783615340286.png) |
 
 ---
 

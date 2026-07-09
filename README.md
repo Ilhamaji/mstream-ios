@@ -23,7 +23,7 @@ A minimalist native iOS wrapper for movie & anime streaming portals (Cineby & Ni
 
 | Main View (Portrait) | Player View (Landscape) |
 | --- | --- |
-| ![Portrait View](screenshots/media__1783615340513.png) | ![Landscape View](screenshots/media__1783615340286.png) |
+| ![Portrait View](screenshots/media__1783618195797.png) | ![Landscape View](screenshots/media__1783618196069.png) |
 
 ---
 

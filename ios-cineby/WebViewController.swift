@@ -50,10 +50,12 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate {
             setInterval(forcePlaysInline, 1000);
             forcePlaysInline();
 
-            // Listen for playback lock messages from the main frame
+            // Listen for playback lock messages and forward recursively
             window.addEventListener('message', function(event) {
               if (event.data && event.data.type === 'playbackLock') {
                 var locked = event.data.locked;
+                
+                // 1. Apply style override in this frame
                 var style = document.getElementById('playback-lock-style-override');
                 if (locked) {
                   if (!style) {
@@ -62,13 +64,28 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate {
                     document.head.appendChild(style);
                   }
                   style.innerHTML = `
-                    .jw-controls, .jw-controlbar, .jw-title, .jw-logo, .jw-nextup-container,
-                    .vjs-control-bar, .vjs-big-play-button, .vjs-loading-spinner, 
+                    .jw-controls, .jw-controlbar, .jw-title, .jw-logo, .jw-nextup-container, .jw-display, .jw-display-icon, .jw-display-icon-container,
+                    .vjs-control-bar, .vjs-big-play-button, .vjs-loading-spinner, .vjs-poster,
                     .plyr__controls, 
-                    .art-control, .art-controls, .art-mask, .art-state,
-                    .control-bar, .player-controls, .video-controls, .controls,
-                    [class*="controlbar"], [class*="control-bar"], [class*="player-bar"],
-                    [class*="video-bar"], [class*="player-controls"] {
+                    .art-control, .art-controls, .art-mask, .art-state, .art-state-play, .art-play, .art-poster,
+                    div[class*="control" i], 
+                    div[class*="toolbar" i], 
+                    [class*="play-button" i], 
+                    [class*="play-icon" i], 
+                    [class*="play-btn" i], 
+                    [class*="playbutton" i], 
+                    [class*="playButton" i], 
+                    [class*="big-play" i], 
+                    [class*="display-icon" i],
+                    [class*="display-btn" i],
+                    div[class*="overlay" i], 
+                    div[class*="mask" i], 
+                    div[class*="poster" i], 
+                    div[class*="preview" i],
+                    div[class*="spinner" i],
+                    div[class*="loading" i],
+                    [class*="player-controls" i],
+                    [class*="video-controls" i] {
                         display: none !important;
                         opacity: 0 !important;
                         visibility: hidden !important;
@@ -80,6 +97,14 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate {
                     style.remove();
                   }
                 }
+                
+                // 2. Forward recursively to all child iframes in this frame
+                try {
+                  var childIframes = document.querySelectorAll('iframe');
+                  for (var i = 0; i < childIframes.length; i++) {
+                    childIframes[i].contentWindow.postMessage({ type: 'playbackLock', locked: locked }, '*');
+                  }
+                } catch (e) {}
               }
             });
           } catch (e) {}
@@ -170,8 +195,10 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate {
     }
 
     func setupNavigationBarRotateButton() {
-        let rotateButton = UIBarButtonItem(title: "Rotate ↻", style: .plain, target: self, action: #selector(navigationRotateTapped))
-        rotateButton.tintColor = .systemBlue
+        let config = UIImage.SymbolConfiguration(pointSize: 16, weight: .semibold, scale: .medium)
+        let icon = UIImage(systemName: "arrow.triangle.2.circlepath", withConfiguration: config)
+        let rotateButton = UIBarButtonItem(image: icon, style: .plain, target: self, action: #selector(navigationRotateTapped))
+        rotateButton.tintColor = .label
         self.navigationItem.rightBarButtonItem = rotateButton
     }
 

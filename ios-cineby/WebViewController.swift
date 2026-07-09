@@ -63,8 +63,44 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate, W
         let earlyJS = """
         (function() {
           try {
+            // Intercept double-taps to prevent players from automatically skipping 10s
+            var lastTouchTime = 0;
+            document.addEventListener('touchstart', function(e) {
+              var target = e.target;
+              if (!target) return;
+              var isVideoOrPlayer = target.nodeName === 'VIDEO' || target.closest('video') || 
+                                    target.closest('.jwplayer') || target.closest('.plyr') || 
+                                    target.closest('.artplayer') || target.closest('.video-js') ||
+                                    target.closest('.dplayer');
+                                    
+              if (isVideoOrPlayer) {
+                var now = Date.now();
+                var diff = now - lastTouchTime;
+                if (diff > 0 && diff < 350) {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  lastTouchTime = 0;
+                  return;
+                }
+                lastTouchTime = now;
+              }
+            }, { passive: false, capture: true });
+
+            document.addEventListener('dblclick', function(e) {
+              var target = e.target;
+              if (!target) return;
+              var isVideoOrPlayer = target.nodeName === 'VIDEO' || target.closest('video') || 
+                                    target.closest('.jwplayer') || target.closest('.plyr') || 
+                                    target.closest('.artplayer') || target.closest('.video-js') ||
+                                    target.closest('.dplayer');
+              if (isVideoOrPlayer) {
+                e.preventDefault();
+                e.stopPropagation();
+              }
+            }, true);
+
             // Deteksi apakah ini situs Cineby — jika ya, biarkan native controls
-            var isCineby = window.location.hostname.includes('cineby');
+            var isCineby = window.location.hostname.includes('cineby') || (document.referrer && document.referrer.includes('cineby'));
             
             if (isCineby) {
               // Pre-inject CSS lock rule untuk Cineby — sudah siap sejak awal,
@@ -298,9 +334,9 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate, W
             broadcastActiveSite();
 
             // Deteksi apakah ini Cineby — jika ya, tidak inject dedicated overlay
-            var isCinebyMain = window.location.hostname.includes('cineby');
+            var isCineby = window.location.hostname.includes('cineby') || (document.referrer && document.referrer.includes('cineby'));
 
-            if (!isCinebyMain) {
+            if (!isCineby) {
               // Inject custom Mstream dedicated playback controls — HANYA untuk non-Cineby (Nimegami, dll)
               function injectMstreamControls() {
                 var video = document.querySelector('video');
@@ -568,11 +604,11 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate, W
                 document.addEventListener('touchstart', handleGlobalTouch, {passive: true, capture: true});
                 document.addEventListener('click', handleGlobalTouch, {capture: true});
               }
-            } // end !isCinebyMain
+            } // end !isCineby
 
             // Persistently hide default player controls — hanya untuk non-Cineby (Nimegami)
             // Cineby menggunakan native controls dan dikontrol oleh Swift (lock)
-            var HIDE_CONTROLS_CSS = isCinebyMain ? '' : [
+            var HIDE_CONTROLS_CSS = isCineby ? '' : [
               /* WebKit native video controls */
               'video::-webkit-media-controls { display:none!important; }',
               'video::-webkit-media-controls-enclosure { display:none!important; }',
@@ -622,7 +658,7 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate, W
             ].join(' ');
 
             // Hanya jalankan hideDefaultControls untuk non-Cineby
-            if (!isCinebyMain) {
+            if (!isCineby) {
               function hideDefaultControls() {
                 var style = document.getElementById('mstream-default-controls-hide-override');
                 if (!style) {
@@ -733,6 +769,30 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate, W
                       if (window.mstreamLockInterval) clearInterval(window.mstreamLockInterval);
                       return;
                     }
+
+                    // Helper to check if element or any of its ancestors/descendants is subtitle-related
+                    var isSubtitleRelated = function(el) {
+                      try {
+                        var checkRegex = /subtitle|caption|text-track|texttrack/i;
+                        if (checkRegex.test(el.className || '') || checkRegex.test(el.id || '')) {
+                          return true;
+                        }
+                        var p = el.parentNode;
+                        var depth = 0;
+                        while (p && p !== document.body && p !== document.documentElement && depth < 8) {
+                          if (checkRegex.test(p.className || '') || checkRegex.test(p.id || '')) {
+                            return true;
+                          }
+                          p = p.parentNode;
+                          depth++;
+                        }
+                        if (el.querySelector && el.querySelector('[class*="subtitle" i], [class*="caption" i], [class*="text-track" i], [class*="texttrack" i], [id*="subtitle" i], [id*="caption" i]')) {
+                          return true;
+                        }
+                      } catch(e) {}
+                      return false;
+                    };
+
                     var selectors = [
                       'button', 'a', '.controls', '.control-bar', '.controlbar',
                       '[class*="controls" i]', '[class*="controlbar" i]', '[class*="control-bar" i]',
@@ -741,7 +801,7 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate, W
                       '[class*="title" i]', '[class*="logo" i]',
                       '[id*="controls" i]', '[id*="controlbar" i]', '[id*="control-bar" i]',
                       '[id*="btn" i]', '[id*="button" i]',
-                      '.jw-controls', '.jw-controlbar', '.vjs-control-bar', '.plyr__controls',
+                      '.jw-controlbar', '.vjs-control-bar', '.plyr__controls',
                       '.art-controls', '.art-bottom', '.dplayer-controller', '.shaka-bottom-controls'
                     ];
                     selectors.forEach(function(sel) {
@@ -759,6 +819,10 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate, W
                           if (el.classList.contains('jwplayer') || el.classList.contains('plyr') || 
                               el.classList.contains('artplayer') || el.classList.contains('video-js') || 
                               el.classList.contains('dplayer')) continue;
+
+                          // Skip elements that contain/are subtitles
+                          if (isSubtitleRelated(el)) continue;
+                          if (el.classList.contains('jw-controls')) continue;
                           
                           el.style.setProperty('display', 'none', 'important');
                           el.style.setProperty('opacity', '0', 'important');
@@ -825,11 +889,14 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate, W
                   }
                   style.innerHTML = `
                     /* Known Player Controls - Safe and Instant Hiding */
-                    .playback-locked .jw-controls,
                     .playback-locked .jw-controlbar,
+                    .playback-locked .jw-display-icon-container,
                     .playback-locked .jw-title,
                     .playback-locked .jw-logo,
                     .playback-locked .jw-settings-menu,
+                    .playback-locked .jw-settings-submenu,
+                    .playback-locked .jw-settings-content,
+                    .playback-locked .jw-nextup-container,
                     .playback-locked .vjs-control-bar,
                     .playback-locked .vjs-big-play-button,
                     .playback-locked .vjs-loading-spinner,
@@ -859,6 +926,25 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate, W
                         pointer-events: none !important;
                     }
                     
+                    /* Aggressive hiding of all controls and progress/timeline elements, while protecting subtitles */
+                    .playback-locked [class*="controls" i]:not(video):not(iframe):not(#mstream-controls-overlay):not([class*="subtitle" i]):not([class*="caption" i]):not([class*="text-track" i]):not([class*="texttrack" i]),
+                    .playback-locked [class*="controlbar" i]:not(video):not(iframe):not(#mstream-controls-overlay):not([class*="subtitle" i]):not([class*="caption" i]):not([class*="text-track" i]):not([class*="texttrack" i]),
+                    .playback-locked [class*="control-bar" i]:not(video):not(iframe):not(#mstream-controls-overlay):not([class*="subtitle" i]):not([class*="caption" i]):not([class*="text-track" i]):not([class*="texttrack" i]),
+                    .playback-locked [class*="progress" i]:not(video):not(iframe):not(#mstream-controls-overlay):not([class*="subtitle" i]):not([class*="caption" i]):not([class*="text-track" i]):not([class*="texttrack" i]),
+                    .playback-locked [class*="timeline" i]:not(video):not(iframe):not(#mstream-controls-overlay):not([class*="subtitle" i]):not([class*="caption" i]):not([class*="text-track" i]):not([class*="texttrack" i]),
+                    .playback-locked [class*="timebar" i]:not(video):not(iframe):not(#mstream-controls-overlay):not([class*="subtitle" i]):not([class*="caption" i]):not([class*="text-track" i]):not([class*="texttrack" i]),
+                    .playback-locked [class*="time-bar" i]:not(video):not(iframe):not(#mstream-controls-overlay):not([class*="subtitle" i]):not([class*="caption" i]):not([class*="text-track" i]):not([class*="texttrack" i]),
+                    .playback-locked [class*="time" i]:not(video):not(iframe):not(#mstream-controls-overlay):not([class*="subtitle" i]):not([class*="caption" i]):not([class*="text-track" i]):not([class*="texttrack" i]):not([class*="text" i]),
+                    .playback-locked [class*="playerbar" i]:not(video):not(iframe):not(#mstream-controls-overlay):not([class*="subtitle" i]):not([class*="caption" i]):not([class*="text-track" i]):not([class*="texttrack" i]),
+                    .playback-locked [class*="player-control" i]:not(video):not(iframe):not(#mstream-controls-overlay):not([class*="subtitle" i]):not([class*="caption" i]):not([class*="text-track" i]):not([class*="texttrack" i]),
+                    .playback-locked [class*="video-control" i]:not(video):not(iframe):not(#mstream-controls-overlay):not([class*="subtitle" i]):not([class*="caption" i]):not([class*="text-track" i]):not([class*="texttrack" i]),
+                    .playback-locked [class*="duration" i]:not(video):not(iframe):not(#mstream-controls-overlay):not([class*="subtitle" i]):not([class*="caption" i]):not([class*="text-track" i]):not([class*="texttrack" i]) {
+                        display: none !important;
+                        opacity: 0 !important;
+                        visibility: hidden !important;
+                        pointer-events: none !important;
+                    }
+                    
                     /* Webkit native controls hiding */
                     .playback-locked *::-webkit-media-controls,
                     .playback-locked *::-webkit-media-controls-enclosure,
@@ -869,6 +955,21 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate, W
                         display: none !important;
                         opacity: 0 !important;
                         visibility: hidden !important;
+                    }
+
+                    /* Explicitly force subtitles to remain visible */
+                    .playback-locked .jw-captions,
+                    .playback-locked .jw-text-track-container,
+                    .playback-locked .vjs-text-track-display,
+                    .playback-locked .plyr__captions,
+                    .playback-locked .art-subtitles,
+                    .playback-locked [class*="subtitle" i],
+                    .playback-locked [class*="caption" i],
+                    .playback-locked [class*="text-track" i],
+                    .playback-locked [class*="texttrack" i] {
+                        display: block !important;
+                        opacity: 1 !important;
+                        visibility: visible !important;
                     }
                   `;
                   
@@ -1513,7 +1614,7 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate, W
         let js = """
         (function() {
           try {
-            var isCineby = window.location.hostname.includes('cineby');
+            var isCineby = window.location.hostname.includes('cineby') || (document.referrer && document.referrer.includes('cineby'));
             if (isCineby) return; // Cineby pakai native controls — jangan diubah di sini
 
             var css = [
@@ -1584,14 +1685,29 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate, W
                 '*::-webkit-media-controls { display:none!important; }',
                 '*::-webkit-media-controls-overlay-play-button { display:none!important; }',
                 '*::-webkit-media-controls-start-playback-button { display:none!important; }',
-                '.jw-controls,.jw-controlbar,.jw-title,.jw-logo,.jw-display-icon-container { display:none!important; opacity:0!important; }',
+                '.jw-controlbar,.jw-title,.jw-logo,.jw-display-icon-container,.jw-settings-menu,.jw-settings-submenu,.jw-nextup-container { display:none!important; opacity:0!important; }',
                 '.vjs-control-bar,.vjs-big-play-button { display:none!important; opacity:0!important; }',
                 '.plyr__controls,.plyr__play-large { display:none!important; opacity:0!important; }',
                 '.art-control,.art-controls,.art-bottom,.art-progress,.art-state,.art-play { display:none!important; opacity:0!important; }',
                 '.dplayer-controller,.dplayer-bar-wrap { display:none!important; opacity:0!important; }',
                 '.shaka-bottom-controls,.shaka-settings-menu { display:none!important; opacity:0!important; }',
                 /* Known Player Controls and native elements only to protect parent wrappers */
-                'button:not(video):not(iframe), a:not(video):not(iframe) { display:none!important; opacity:0!important; visibility:hidden!important; pointer-events:none!important; }'
+                'button:not(video):not(iframe), a:not(video):not(iframe) { display:none!important; opacity:0!important; visibility:hidden!important; pointer-events:none!important; }',
+                /* Aggressive controls and progress/timeline elements hiding, excluding subtitles */
+                '[class*="controls" i]:not(video):not(iframe):not(#mstream-controls-overlay):not([class*="subtitle" i]):not([class*="caption" i]):not([class*="text-track" i]):not([class*="texttrack" i]) { display:none!important; opacity:0!important; visibility:hidden!important; pointer-events:none!important; }',
+                '[class*="controlbar" i]:not(video):not(iframe):not(#mstream-controls-overlay):not([class*="subtitle" i]):not([class*="caption" i]):not([class*="text-track" i]):not([class*="texttrack" i]) { display:none!important; opacity:0!important; visibility:hidden!important; pointer-events:none!important; }',
+                '[class*="control-bar" i]:not(video):not(iframe):not(#mstream-controls-overlay):not([class*="subtitle" i]):not([class*="caption" i]):not([class*="text-track" i]):not([class*="texttrack" i]) { display:none!important; opacity:0!important; visibility:hidden!important; pointer-events:none!important; }',
+                '[class*="progress" i]:not(video):not(iframe):not(#mstream-controls-overlay):not([class*="subtitle" i]):not([class*="caption" i]):not([class*="text-track" i]):not([class*="texttrack" i]) { display:none!important; opacity:0!important; visibility:hidden!important; pointer-events:none!important; }',
+                '[class*="timeline" i]:not(video):not(iframe):not(#mstream-controls-overlay):not([class*="subtitle" i]):not([class*="caption" i]):not([class*="text-track" i]):not([class*="texttrack" i]) { display:none!important; opacity:0!important; visibility:hidden!important; pointer-events:none!important; }',
+                '[class*="timebar" i]:not(video):not(iframe):not(#mstream-controls-overlay):not([class*="subtitle" i]):not([class*="caption" i]):not([class*="text-track" i]):not([class*="texttrack" i]) { display:none!important; opacity:0!important; visibility:hidden!important; pointer-events:none!important; }',
+                '[class*="time-bar" i]:not(video):not(iframe):not(#mstream-controls-overlay):not([class*="subtitle" i]):not([class*="caption" i]):not([class*="text-track" i]):not([class*="texttrack" i]) { display:none!important; opacity:0!important; visibility:hidden!important; pointer-events:none!important; }',
+                '[class*="time" i]:not(video):not(iframe):not(#mstream-controls-overlay):not([class*="subtitle" i]):not([class*="caption" i]):not([class*="text-track" i]):not([class*="texttrack" i]):not([class*="text" i]) { display:none!important; opacity:0!important; visibility:hidden!important; pointer-events:none!important; }',
+                '[class*="playerbar" i]:not(video):not(iframe):not(#mstream-controls-overlay):not([class*="subtitle" i]):not([class*="caption" i]):not([class*="text-track" i]):not([class*="texttrack" i]) { display:none!important; opacity:0!important; visibility:hidden!important; pointer-events:none!important; }',
+                '[class*="player-control" i]:not(video):not(iframe):not(#mstream-controls-overlay):not([class*="subtitle" i]):not([class*="caption" i]):not([class*="text-track" i]):not([class*="texttrack" i]) { display:none!important; opacity:0!important; visibility:hidden!important; pointer-events:none!important; }',
+                '[class*="video-control" i]:not(video):not(iframe):not(#mstream-controls-overlay):not([class*="subtitle" i]):not([class*="caption" i]):not([class*="text-track" i]):not([class*="texttrack" i]) { display:none!important; opacity:0!important; visibility:hidden!important; pointer-events:none!important; }',
+                '[class*="duration" i]:not(video):not(iframe):not(#mstream-controls-overlay):not([class*="subtitle" i]):not([class*="caption" i]):not([class*="text-track" i]):not([class*="texttrack" i]) { display:none!important; opacity:0!important; visibility:hidden!important; pointer-events:none!important; }',
+                /* Explicitly force subtitles to remain visible */
+                '.jw-captions, .jw-text-track-container, .vjs-text-track-display, .plyr__captions, .art-subtitles, [class*="subtitle" i], [class*="caption" i], [class*="text-track" i], [class*="texttrack" i] { display:block!important; opacity:1!important; visibility:visible!important; }'
             ].join(' ');
             
             function injectCSS(doc) {

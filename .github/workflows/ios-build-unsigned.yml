@@ -65,14 +65,14 @@ jobs:
           fi
 
       - name: Build unsigned .app archive
-        working-directory: ios/App
+        working-directory: capacitor-app/ios/App
         run: |
           set -e
           ARCHIVE_PATH="$(pwd)/build/App.xcarchive"
           xcodebuild -workspace App.xcworkspace -scheme App -configuration Release -sdk iphoneos -archivePath "$ARCHIVE_PATH" archive CODE_SIGNING_ALLOWED=NO
 
       - name: Pack unsigned .ipa
-        working-directory: ios/App
+        working-directory: capacitor-app/ios/App
         run: |
           set -e
           ARCHIVE_DIR="$(pwd)/build/App.xcarchive"
@@ -88,4 +88,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ios-unsigned-ipa
-          path: ios/App/unsigned-App.ipa
+          path: capacitor-app/ios/App/unsigned-App.ipa

@@ -61,8 +61,8 @@ jobs:
             perl -pi -e 's/IPHONEOS_DEPLOYMENT_TARGET = .*/IPHONEOS_DEPLOYMENT_TARGET = 26.0/' "$xcfile"
           done
           npx --yes @capacitor/cli copy ios
-          cd ios/App
-          if [ -f Podfile ]; then
+          if [ -f ios/App/Podfile ]; then
+            cd ios/App
             pod install --repo-update
           fi
 
@@ -77,11 +77,11 @@ jobs:
           APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
           FASTLANE_USER: ${{ secrets.FASTLANE_USER }}
         run: |
-          cd ios/App
+          cd capacitor-app/ios/App
           fastlane ios build_artifact
 
       - name: Upload .ipa artifact
         uses: actions/upload-artifact@v4
         with:
           name: ios-ipa
-          path: ios/artifacts/**/*.ipa
+          path: capacitor-app/ios/artifacts/**/*.ipa

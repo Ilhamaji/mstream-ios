@@ -29,7 +29,7 @@ A minimalist native iOS wrapper for movie & anime streaming portals (Cineby & Ni
 
 ## ⚙️ How to Install (Sideloadly)
 
-1. Download the `unsigned-App.ipa` build file from the **Actions** tab in your GitHub repository.
+1. Download the `Mstream v1` build file from the **Actions** tab in your GitHub repository.
 2. Connect your iPhone to your computer (Windows/Mac).
 3. Open **Sideloadly**, enter your Apple ID, and drag the `.ipa` file into the app.
 4. Click **Start** to install.

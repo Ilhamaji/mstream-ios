@@ -1075,6 +1075,19 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate, W
                   if (style) {
                     style.remove();
                   }
+                  // Restore video controls on unlock
+                  try {
+                    var vids = document.querySelectorAll('video');
+                    for (var vi = 0; vi < vids.length; vi++) {
+                      try {
+                        vids[vi].controls = true;
+                        vids[vi].setAttribute('controls', '');
+                        if (vids[vi].getAttribute && vids[vi].getAttribute('data-mstream-had-controls')) {
+                          vids[vi].removeAttribute('data-mstream-had-controls');
+                        }
+                      } catch(e) {}
+                    }
+                  } catch(e) {}
                 }
                 
                 // 2. Forward recursively to all child iframes in this frame
@@ -1809,10 +1822,17 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate, W
                         (doc.head || doc.documentElement).appendChild(style);
                     }
                     style.innerHTML = lockCSS;
-                    // Disable video controls programmatically
+                    // Disable video controls programmatically (but remember previous state)
                     doc.querySelectorAll('video').forEach(function(v) {
+                      try {
+                        if (v.hasAttribute && v.hasAttribute('controls')) {
+                          v.setAttribute('data-mstream-had-controls', '1');
+                        } else {
+                          v.removeAttribute('data-mstream-had-controls');
+                        }
                         v.controls = false;
                         v.removeAttribute('controls');
+                      } catch(e) {}
                     });
                 } catch(e) {}
             }
@@ -1840,8 +1860,21 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate, W
             
             function removeCSS(doc) {
                 try {
-                    var style = doc.getElementById('cineby-iframe-lock');
-                    if (style) style.remove();
+            var style = doc.getElementById('cineby-iframe-lock');
+            if (style) style.remove();
+            // Restore video controls when unlocking
+            try {
+              var vids = doc.querySelectorAll('video');
+              for (var i = 0; i < vids.length; i++) {
+                try {
+                  vids[i].controls = true;
+                  vids[i].setAttribute('controls', '');
+                  if (vids[i].getAttribute && vids[i].getAttribute('data-mstream-had-controls')) {
+                    vids[i].removeAttribute('data-mstream-had-controls');
+                  }
+                } catch(e) {}
+              }
+            } catch(e) {}
                 } catch(e) {}
             }
             

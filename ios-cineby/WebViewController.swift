@@ -191,21 +191,21 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate, W
                 (document.head || document.documentElement).appendChild(lockStyle);
               }
               lockStyle.innerHTML = [
-                'html.cineby-locked video::-webkit-media-controls { display:none!important; opacity:0!important; }',
-                'html.cineby-locked video::-webkit-media-controls-enclosure { display:none!important; opacity:0!important; }',
-                'html.cineby-locked video::-webkit-media-controls-panel { display:none!important; opacity:0!important; }',
-                'html.cineby-locked video::-webkit-media-controls-play-button { display:none!important; opacity:0!important; }',
-                'html.cineby-locked video::-webkit-media-controls-overlay-play-button { display:none!important; opacity:0!important; }',
-                'html.cineby-locked video::-webkit-media-controls-start-playback-button { display:none!important; opacity:0!important; }',
-                'html.cineby-locked video::-webkit-media-controls-volume-slider { display:none!important; opacity:0!important; }',
-                'html.cineby-locked video::-webkit-media-controls-timeline { display:none!important; opacity:0!important; }',
-                'html.cineby-locked video::-webkit-media-controls-current-time-display { display:none!important; opacity:0!important; }',
-                'html.cineby-locked video::-webkit-media-controls-time-remaining-display { display:none!important; opacity:0!important; }',
-                'html.cineby-locked video::-webkit-media-controls-mute-button { display:none!important; opacity:0!important; }',
-                'html.cineby-locked video::-webkit-media-controls-fullscreen-button { display:none!important; opacity:0!important; }',
-                'html.cineby-locked *::-webkit-media-controls { display:none!important; }',
-                'html.cineby-locked *::-webkit-media-controls-overlay-play-button { display:none!important; }',
-                'html.cineby-locked *::-webkit-media-controls-start-playback-button { display:none!important; }'
+                'video::-webkit-media-controls { display:none!important; opacity:0!important; }',
+                'video::-webkit-media-controls-enclosure { display:none!important; opacity:0!important; }',
+                'video::-webkit-media-controls-panel { display:none!important; opacity:0!important; }',
+                'video::-webkit-media-controls-play-button { display:none!important; opacity:0!important; }',
+                'video::-webkit-media-controls-overlay-play-button { display:none!important; opacity:0!important; }',
+                'video::-webkit-media-controls-start-playback-button { display:none!important; opacity:0!important; }',
+                'video::-webkit-media-controls-volume-slider { display:none!important; opacity:0!important; }',
+                'video::-webkit-media-controls-timeline { display:none!important; opacity:0!important; }',
+                'video::-webkit-media-controls-current-time-display { display:none!important; opacity:0!important; }',
+                'video::-webkit-media-controls-time-remaining-display { display:none!important; opacity:0!important; }',
+                'video::-webkit-media-controls-mute-button { display:none!important; opacity:0!important; }',
+                'video::-webkit-media-controls-fullscreen-button { display:none!important; opacity:0!important; }',
+                '*::-webkit-media-controls { display:none!important; }',
+                '*::-webkit-media-controls-overlay-play-button { display:none!important; }',
+                '*::-webkit-media-controls-start-playback-button { display:none!important; }'
               ].join(' ');
             } else {
               // Hanya blokir native controls untuk NON-Cineby (misal Nimegami)
@@ -1869,10 +1869,13 @@ class WebViewController: UIViewController, WKNavigationDelegate, WKUIDelegate, W
               var vids = doc.querySelectorAll('video');
               for (var i = 0; i < vids.length; i++) {
                 try {
-                  vids[i].controls = true;
-                  vids[i].setAttribute('controls', '');
-                  if (vids[i].getAttribute && vids[i].getAttribute('data-mstream-had-controls')) {
+                  if (vids[i].getAttribute && vids[i].getAttribute('data-mstream-had-controls') === '1') {
+                    vids[i].controls = true;
+                    vids[i].setAttribute('controls', '');
                     vids[i].removeAttribute('data-mstream-had-controls');
+                  } else {
+                    vids[i].controls = false;
+                    vids[i].removeAttribute('controls');
                   }
                 } catch(e) {}
               }

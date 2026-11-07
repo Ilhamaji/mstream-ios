@@ -1,47 +1,132 @@
-# Mstream iOS Wrapper
+<div align="center">
 
-A minimalist native iOS wrapper for movie & anime streaming portals (Cineby & Nimegami) featuring **Bypass Portrait Orientation Lock**, **Netflix-Style Playback Lock**, and **Multi-Portal Selection**.
+# Mstream iOS
 
----
+Wrapper iOS untuk portal streaming **Cineby** (film & serial) dan **Nimegami** (anime), dengan pembungkus `WKWebView` yang menambal kekurangan player web-nya.
 
-## 📱 Key Features
+[![Status](https://img.shields.io/badge/status-active-brightgreen?style=flat-square)](#)
+[![Swift](https://img.shields.io/badge/Swift-5-F05138?style=flat-square&logo=swift&logoColor=white)](https://swift.org)
+[![iOS](https://img.shields.io/badge/iOS-UIKit-000000?style=flat-square&logo=apple&logoColor=white)](https://developer.apple.com/ios/)
 
-1. **Bypass Orientation Lock**: Instantly watch video streams in fullscreen landscape even when the system *Portrait Orientation Lock* is active on your iPhone.
-2. **Reddit-Style Floating Controls**: Floating circular control buttons (50x50) styled using native Apple **SF Symbols** in both portrait and landscape modes (replacing navigation headers completely).
-   * **Context-Sensitive Rotate Button**: The rotation button remains completely hidden while you are browsing lists or search descriptions. It automatically fades in **only when a video player/video element is actively detected** on the screen.
-3. **Netflix-Style Playback Lock**:
-   * Instant screen lock that disables all touch interactions on the video player/WebView (blocking ads, pop-ups, and accidental pause/seeking).
-   * **Auto-Hide**: The red lock button automatically fades out after 3 seconds of inactivity.
-   * **Tap-to-Toggle**: Simply tap anywhere on the screen to show or instantly hide the lock button.
-4. **Edge-to-Edge Fullscreen (No Margins)**: Automatically overrides HTML viewport scales and safe area margins in landscape to fill the physical screen completely.
-5. **Multi-Portal Selection Screen**: Choose between streaming movies/shows on **Cineby** or anime on **Nimegami** upon opening the app.
-6. **Fast Web Switcher**: Quickly toggle between Cineby and Nimegami at any time with a dedicated floating button in portrait mode using a smooth cross-dissolve fade transition. The switcher automatically hides when watching a video in landscape.
+</div>
 
 ---
 
-## 📸 Screenshots
+## Kenapa Ada
 
-| Main View (Portrait) | Player View (Landscape) |
+Player web di kedua portal itu punya tiga masalah saat dibuka di iPhone:
+
+1. **Screen Rotation Lock** memblokir mode landscape, jadi video cuma bisa ditonton dalam portrait.
+2. **Player tidak pernah benar-benar fullscreen** — masih ada margin dan safe-area.
+3. **Tidak ada cara mengunci layar** saat menonton, sehingga sentuhan tak sengaja membuat video ter-pause atau melompat.
+
+Mstream menambal ketiganya dari sisi native, tanpa mengubah situsnya.
+
+## Fitur
+
+### Bypass Orientation Lock
+Menonton fullscreen landscape tetap bisa walau **Screen Rotation Lock** sedang aktif. Diimplementasikan di `AppDelegate.swift` lewat `supportedInterfaceOrientationsFor`.
+
+### Netflix-Style Playback Lock
+Tombol kunci merah menonaktifkan seluruh interaksi sentuh pada WebView — mencegah pause/seeking tak sengaja sekaligus memblokir pop-up dan klik iklan yang dipicu skrip.
+
+- Auto-hide setelah 3 detik tanpa interaksi.
+- Tap di mana saja untuk memunculkan atau menyembunyikan tombol kunci.
+
+### Floating Controls
+Tombol kontrol bulat 50×50 memakai **SF Symbols**, menggantikan navigation header di mode portrait maupun landscape.
+
+- **Rotate button context-sensitive** — hanya muncul saat elemen `<video>` terdeteksi di halaman, dan hilang saat sedang menelusuri daftar atau deskripsi.
+
+### Edge-to-Edge Fullscreen
+Menimpa `viewport` HTML dan safe-area margin saat landscape agar video mengisi layar penuh.
+
+### Multi-Portal
+Layar pemilihan portal saat aplikasi dibuka (Cineby atau Nimegami), plus tombol switch mengambang dengan transisi cross-dissolve. Tombol switch otomatis disembunyikan saat menonton video landscape.
+
+## Screenshot
+
+| Portrait | Landscape (player) |
 | --- | --- |
-| ![Portrait View](screenshots/media__1783618195797.png) | ![Landscape View](screenshots/media__1783618196069.png) |
+| ![Portrait](screenshots/media__1783618195797.png) | ![Landscape](screenshots/media__1783618196069.png) |
+
+## Tech Stack
+
+| Bagian | Teknologi |
+| --- | --- |
+| Bahasa | Swift 5 |
+| UI | UIKit (`UIViewController`, `UINavigationController`) |
+| Web | `WKWebView` + `WKUserScript` |
+| Build | Xcode + GitHub Actions (signed & unsigned) |
+| Alternatif | Capacitor wrapper di `capacitor-app/` |
+
+## Struktur
+
+```
+ios-cineby/                            # sumber native (Swift)
+  AppDelegate.swift                    # bypass orientation lock
+  SceneDelegate.swift
+  WebViewController.swift              # inti: player, floating controls, lock
+  OrientationNavigationController.swift
+capacitor-app/                         # wrapper Capacitor + aset web
+  capacitor.config.json
+  patch_ios.sh                         # patch project iOS hasil generate
+fastlane/                              # Appfile, Fastfile, Matchfile (signing)
+.github/workflows/
+  ios-build.yml                        # build signed
+  ios-build-unsigned.yml               # build IPA unsigned
+screenshots/
+```
+
+## Build
+
+Repo ini **tidak menyimpan `*.xcodeproj`** — project iOS di-generate oleh Capacitor saat build. Ada dua jalur.
+
+### A. IPA unsigned via GitHub Actions (paling mudah)
+
+Workflow `ios-build-unsigned.yml` berjalan saat push ke `main`/`master`, atau manual lewat tab **Actions → Run workflow**. Hasilnya artifact berisi IPA unsigned, siap dipakai Sideloadly/AltStore.
+
+### B. Build lokal
+
+Butuh macOS + Xcode.
+
+```bash
+cd capacitor-app
+npm install
+npx @capacitor/cli add ios --packagemanager SPM   # sekali saja
+npx @capacitor/cli copy ios
+bash patch_ios.sh
+
+cd ios/App
+xcodebuild -workspace App.xcworkspace -scheme App -configuration Release \
+  -sdk iphoneos archive -archivePath build/App.xcarchive CODE_SIGNING_ALLOWED=NO
+```
+
+Setelah project ter-generate, kamu juga bisa membukanya di Xcode:
+
+```bash
+open ios/App/App.xcworkspace
+```
+
+Workflow memaksa `IPHONEOS_DEPLOYMENT_TARGET` ke **26.0** pada Podfile, `project.pbxproj`, dan `.xcconfig`. Kalau build lokal gagal karena target version, itu penyebabnya.
+
+### Sideload
+
+Pasang IPA lewat **Sideloadly** atau **AltStore**. Build ke perangkat fisik butuh signing certificate Apple Developer.
+
+## Cara Pakai
+
+1. Buka aplikasi, pilih portal (Cineby / Nimegami).
+2. Pilih judul, mulai menonton.
+3. Putar perangkat ke landscape — fullscreen aktif walau Rotation Lock menyala.
+4. Tap tombol kunci merah untuk mengunci layar saat menonton.
+
+## Disclaimer
+
+Project ini hanya klien. Seluruh konten berasal dari pihak ketiga; repo ini tidak menghosting atau mendistribusikan materi berhak cipta apa pun. Gunakan secara bertanggung jawab dan ikuti ketentuan layanan masing-masing portal.
 
 ---
 
-## ⚙️ How to Install (Sideloadly)
-
-1. Download the `Mstream v1` build file from the **Actions** tab in your GitHub repository.
-2. Connect your iPhone to your computer (Windows/Mac).
-3. Open **Sideloadly**, enter your Apple ID, and drag the `.ipa` file into the app.
-4. Click **Start** to install.
-5. On your iPhone, go to **Settings → General → VPN & Device Management**, tap your Apple ID, and select **Trust**.
-
----
-
-## 🚀 How to Use
-
-1. Open the app and select your desired streaming portal (Cineby or Nimegami) from the selection landing screen.
-2. Tap the floating swap button `arrow.left.arrow.right` in the top-right corner of the portrait screen at any time to switch instantly to the other website.
-3. **Rotate Screen**: Once you open a video and it begins playing, the circular rotation icon `arrow.triangle.2.circlepath` will appear below the swap button in the top-right. Tap it to enter landscape mode.
-4. **Locking the Screen**: Tap the unlocked padlock icon `lock.open.fill` at the bottom-left of the landscape screen. The button will turn red, lock touch gestures, and fade out in 3 seconds.
-5. **Unlocking the Screen**: Tap anywhere on the blank screen to show the red padlock button, then tap the padlock button itself to unlock.
-6. Tap the circular rotation button in the bottom-right of the landscape screen to return to portrait mode.
+<div align="center">
+Dibuat oleh <a href="https://github.com/Ilhamaji">Ilham Aji</a>
+</div>

@@ -2,49 +2,51 @@
 
 # Mstream iOS
 
-Wrapper iOS untuk portal streaming **Cineby** (film & serial) dan **Nimegami** (anime), dengan pembungkus `WKWebView` yang menambal kekurangan player web-nya.
+An iOS wrapper for the **Cineby** (movies and series) and **Nimegami** (anime) streaming portals, using a `WKWebView` shell that patches the shortcomings of their web players.
 
 [![Status](https://img.shields.io/badge/status-active-brightgreen?style=flat-square)](#)
 [![Swift](https://img.shields.io/badge/Swift-5-F05138?style=flat-square&logo=swift&logoColor=white)](https://swift.org)
 [![iOS](https://img.shields.io/badge/iOS-UIKit-000000?style=flat-square&logo=apple&logoColor=white)](https://developer.apple.com/ios/)
 
+**English** · [Bahasa Indonesia](README.id.md)
+
 </div>
 
 ---
 
-## Kenapa Ada
+## Why It Exists
 
-Player web di kedua portal itu punya tiga masalah saat dibuka di iPhone:
+The web players on both portals have three problems on iPhone:
 
-1. **Screen Rotation Lock** memblokir mode landscape, jadi video cuma bisa ditonton dalam portrait.
-2. **Player tidak pernah benar-benar fullscreen** — masih ada margin dan safe-area.
-3. **Tidak ada cara mengunci layar** saat menonton, sehingga sentuhan tak sengaja membuat video ter-pause atau melompat.
+1. **Screen Rotation Lock** blocks landscape mode, so video only plays in portrait.
+2. **The player never goes truly fullscreen** — margins and safe areas remain.
+3. **There is no way to lock the screen** while watching, so an accidental touch pauses the video or seeks.
 
-Mstream menambal ketiganya dari sisi native, tanpa mengubah situsnya.
+Mstream fixes all three on the native side, without modifying the sites.
 
-## Fitur
+## Features
 
 ### Bypass Orientation Lock
-Menonton fullscreen landscape tetap bisa walau **Screen Rotation Lock** sedang aktif. Diimplementasikan di `AppDelegate.swift` lewat `supportedInterfaceOrientationsFor`.
+Fullscreen landscape still works while **Screen Rotation Lock** is enabled. Implemented in `AppDelegate.swift` via `supportedInterfaceOrientationsFor`.
 
 ### Netflix-Style Playback Lock
-Tombol kunci merah menonaktifkan seluruh interaksi sentuh pada WebView — mencegah pause/seeking tak sengaja sekaligus memblokir pop-up dan klik iklan yang dipicu skrip.
+A red lock button disables all touch interaction on the WebView — preventing accidental pause/seek while also blocking pop-ups and ad clicks triggered by scripts.
 
-- Auto-hide setelah 3 detik tanpa interaksi.
-- Tap di mana saja untuk memunculkan atau menyembunyikan tombol kunci.
+- Auto-hides after 3 seconds without interaction.
+- Tap anywhere to show or hide the lock button.
 
 ### Floating Controls
-Tombol kontrol bulat 50×50 memakai **SF Symbols**, menggantikan navigation header di mode portrait maupun landscape.
+Circular 50×50 controls using **SF Symbols**, replacing the navigation header in both portrait and landscape.
 
-- **Rotate button context-sensitive** — hanya muncul saat elemen `<video>` terdeteksi di halaman, dan hilang saat sedang menelusuri daftar atau deskripsi.
+- **Context-sensitive rotate button** — appears only when a `<video>` element is detected on the page, and hides while browsing lists or descriptions.
 
 ### Edge-to-Edge Fullscreen
-Menimpa `viewport` HTML dan safe-area margin saat landscape agar video mengisi layar penuh.
+Overrides the HTML `viewport` and safe-area margins in landscape so video fills the screen.
 
 ### Multi-Portal
-Layar pemilihan portal saat aplikasi dibuka (Cineby atau Nimegami), plus tombol switch mengambang dengan transisi cross-dissolve. Tombol switch otomatis disembunyikan saat menonton video landscape.
+A portal picker on launch (Cineby or Nimegami), plus a floating switch button with a cross-dissolve transition. The switch button hides automatically while watching video in landscape.
 
-## Screenshot
+## Screenshots
 
 | Portrait | Landscape (player) |
 | --- | --- |
@@ -52,48 +54,48 @@ Layar pemilihan portal saat aplikasi dibuka (Cineby atau Nimegami), plus tombol 
 
 ## Tech Stack
 
-| Bagian | Teknologi |
+| Layer | Technology |
 | --- | --- |
-| Bahasa | Swift 5 |
+| Language | Swift 5 |
 | UI | UIKit (`UIViewController`, `UINavigationController`) |
 | Web | `WKWebView` + `WKUserScript` |
-| Build | Xcode + GitHub Actions (signed & unsigned) |
-| Alternatif | Capacitor wrapper di `capacitor-app/` |
+| Build | Xcode + GitHub Actions (signed and unsigned) |
+| Alternative | Capacitor wrapper in `capacitor-app/` |
 
-## Struktur
+## Project Layout
 
 ```
-ios-cineby/                            # sumber native (Swift)
-  AppDelegate.swift                    # bypass orientation lock
+ios-cineby/                            # native sources (Swift)
+  AppDelegate.swift                    # orientation lock bypass
   SceneDelegate.swift
-  WebViewController.swift              # inti: player, floating controls, lock
+  WebViewController.swift              # core: player, floating controls, lock
   OrientationNavigationController.swift
-capacitor-app/                         # wrapper Capacitor + aset web
+capacitor-app/                         # Capacitor wrapper + web assets
   capacitor.config.json
-  patch_ios.sh                         # patch project iOS hasil generate
+  patch_ios.sh                         # patches the generated iOS project
 fastlane/                              # Appfile, Fastfile, Matchfile (signing)
 .github/workflows/
-  ios-build.yml                        # build signed
-  ios-build-unsigned.yml               # build IPA unsigned
+  ios-build.yml                        # signed build
+  ios-build-unsigned.yml               # unsigned IPA build
 screenshots/
 ```
 
-## Build
+## Building
 
-Repo ini **tidak menyimpan `*.xcodeproj`** — project iOS di-generate oleh Capacitor saat build. Ada dua jalur.
+This repo **does not commit an `*.xcodeproj`** — Capacitor generates the iOS project at build time. There are two paths.
 
-### A. IPA unsigned via GitHub Actions (paling mudah)
+### A. Unsigned IPA via GitHub Actions (easiest)
 
-Workflow `ios-build-unsigned.yml` berjalan saat push ke `main`/`master`, atau manual lewat tab **Actions → Run workflow**. Hasilnya artifact berisi IPA unsigned, siap dipakai Sideloadly/AltStore.
+The `ios-build-unsigned.yml` workflow runs on push to `main`/`master`, or manually from the **Actions → Run workflow** tab. It produces an artifact containing an unsigned IPA, ready for Sideloadly/AltStore.
 
-### B. Build lokal
+### B. Local build
 
-Butuh macOS + Xcode.
+Requires macOS and Xcode.
 
 ```bash
 cd capacitor-app
 npm install
-npx @capacitor/cli add ios --packagemanager SPM   # sekali saja
+npx @capacitor/cli add ios --packagemanager SPM   # once only
 npx @capacitor/cli copy ios
 bash patch_ios.sh
 
@@ -102,31 +104,31 @@ xcodebuild -workspace App.xcworkspace -scheme App -configuration Release \
   -sdk iphoneos archive -archivePath build/App.xcarchive CODE_SIGNING_ALLOWED=NO
 ```
 
-Setelah project ter-generate, kamu juga bisa membukanya di Xcode:
+Once the project is generated you can also open it in Xcode:
 
 ```bash
 open ios/App/App.xcworkspace
 ```
 
-Workflow memaksa `IPHONEOS_DEPLOYMENT_TARGET` ke **26.0** pada Podfile, `project.pbxproj`, dan `.xcconfig`. Kalau build lokal gagal karena target version, itu penyebabnya.
+The workflow forces `IPHONEOS_DEPLOYMENT_TARGET` to **26.0** across the Podfile, `project.pbxproj`, and `.xcconfig`. If a local build fails on deployment target, that is why.
 
-### Sideload
+### Sideloading
 
-Pasang IPA lewat **Sideloadly** atau **AltStore**. Build ke perangkat fisik butuh signing certificate Apple Developer.
+Install the IPA with **Sideloadly** or **AltStore**. Building to a physical device requires an Apple Developer signing certificate.
 
-## Cara Pakai
+## Usage
 
-1. Buka aplikasi, pilih portal (Cineby / Nimegami).
-2. Pilih judul, mulai menonton.
-3. Putar perangkat ke landscape — fullscreen aktif walau Rotation Lock menyala.
-4. Tap tombol kunci merah untuk mengunci layar saat menonton.
+1. Open the app and choose a portal (Cineby / Nimegami).
+2. Pick a title and start watching.
+3. Rotate to landscape — fullscreen engages even with Rotation Lock on.
+4. Tap the red lock button to lock the screen while watching.
 
 ## Disclaimer
 
-Project ini hanya klien. Seluruh konten berasal dari pihak ketiga; repo ini tidak menghosting atau mendistribusikan materi berhak cipta apa pun. Gunakan secara bertanggung jawab dan ikuti ketentuan layanan masing-masing portal.
+This project is a client only. All content comes from third parties; this repo does not host or distribute any copyrighted material. Use it responsibly and respect each portal's terms of service.
 
 ---
 
 <div align="center">
-Dibuat oleh <a href="https://github.com/Ilhamaji">Ilham Aji</a>
+Built by <a href="https://github.com/Ilhamaji">Ilham Aji</a>
 </div>
